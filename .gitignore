@@ -6,3 +6,4 @@ riot_cache/
 *.parquet
 *.duckdb
 __pycache__/
+.DS_Store

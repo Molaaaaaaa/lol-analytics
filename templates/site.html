@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>솔랭 해체 분석기</title>
+<meta name="description" content="해체하여, 지식을 습득한다. 친구들 솔로랭크 분석 — 챔피언·맞라인·오브젝트·죽음의 지도·데스 부검.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="솔랭 해체 분석기">
+<meta property="og:title" content="솔랭 해체 분석기">
+<meta property="og:description" content="해체하여, 지식을 습득한다.">
+<meta property="og:url" content="https://molaaaaaaa.github.io/lol-analytics/">
+<meta property="og:image" content="https://molaaaaaaa.github.io/lol-analytics/og.png?v=2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="솔랭 해체 분석기">
+<meta name="twitter:description" content="해체하여, 지식을 습득한다.">
+<meta name="twitter:image" content="https://molaaaaaaa.github.io/lol-analytics/og.png?v=2">
+<meta name="theme-color" content="#0e1420">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%94%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{--bg:#f5f3ee;--surf:#fffefb;--line:#e0dbd0;--ink:#1b2030;--ink2:#565f73;--muted:#8b93a5;
+--accent:#9a7118;--good:#2f7d55;--bad:#b3474a;--gl:#e8e3d8;--chip:#efece4}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+--bg:#0e1420;--surf:#161d2b;--line:#26304a;--ink:#e8eaf0;--ink2:#a8b0c2;--muted:#79839a;
+--accent:#c8a24a;--good:#4a9d6f;--bad:#c05a5a;--gl:#222c3e;--chip:#1e2636}}
+:root[data-theme=dark]{--bg:#0e1420;--surf:#161d2b;--line:#26304a;--ink:#e8eaf0;--ink2:#a8b0c2;
+--muted:#79839a;--accent:#c8a24a;--good:#4a9d6f;--bad:#c05a5a;--gl:#222c3e;--chip:#1e2636}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.55;
+font-family:'IBM Plex Sans KR','Malgun Gothic',system-ui,sans-serif}
+.wrap{max-width:1040px;margin:0 auto;padding:0 18px}
+header{background:var(--surf);border-bottom:1px solid var(--line);padding:26px 0 18px}
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;
+text-transform:uppercase;color:var(--accent);margin:0 0 6px}
+h1{font-family:'Chakra Petch','IBM Plex Sans KR',sans-serif;font-size:clamp(24px,4vw,36px);
+margin:0;letter-spacing:-.01em}
+.sub{color:var(--ink2);font-size:13px;margin:6px 0 0}
+#search{width:100%;margin-top:16px;padding:11px 14px;font-size:15px;border-radius:9px;
+border:1px solid var(--line);background:var(--bg);color:var(--ink);font-family:inherit}
+#search:focus{outline:2px solid var(--accent);outline-offset:1px}
+main{padding:22px 18px 50px}
+.roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:11px}
+.card{background:var(--surf);border:1px solid var(--line);border-radius:11px;padding:14px 15px;
+cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%;transition:border-color .12s}
+.card:hover,.card:focus-visible{border-color:var(--accent);outline:none}
+.cn{font-weight:600;font-size:16px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.tag{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)}
+.crow{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;font-size:11.5px}
+.chip{background:var(--chip);border-radius:20px;padding:2px 9px;color:var(--ink2)}
+.wrbig{font-family:'Chakra Petch',sans-serif;font-size:19px;font-variant-numeric:tabular-nums}
+.form{display:flex;gap:2px;margin-top:9px}
+.f{width:100%;height:5px;border-radius:2px;background:var(--bad)}
+.f.w{background:var(--good)}
+.hidden{display:none!important}
+.back{background:none;border:none;color:var(--accent);cursor:pointer;font:inherit;padding:0;
+margin-bottom:12px;font-size:13.5px}
+.jump{display:flex;gap:5px;overflow-x:auto;padding:9px 0;margin-bottom:14px;
+border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+.jump button{white-space:nowrap;background:var(--chip);border:1px solid transparent;color:var(--ink2);
+border-radius:20px;padding:6px 13px;font:inherit;font-size:12.5px;cursor:pointer}
+.jump button:hover,.jump button:focus-visible{border-color:var(--accent);color:var(--accent);outline:none}
+h2{font-family:'Chakra Petch','IBM Plex Sans KR',sans-serif;font-size:14px;letter-spacing:.1em;
+text-transform:uppercase;color:var(--accent);margin:26px 0 8px;padding-bottom:7px;
+border-bottom:1px solid var(--line);scroll-margin-top:52px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:1px;
+background:var(--line);border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-bottom:6px}
+.kpi{background:var(--surf);padding:10px 12px}
+.kl{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.kv{font-family:'Chakra Petch',sans-serif;font-size:21px;font-variant-numeric:tabular-nums}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.box{background:var(--surf);border:1px solid var(--line);border-radius:10px;padding:13px 15px}
+.box h3{font-size:14px;margin:0 0 9px;font-weight:600}
+.bar{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:12.5px}
+.bl{width:104px;flex:none;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bt{flex:1;height:13px;background:var(--gl);border-radius:3px;overflow:hidden}
+.bf{height:100%;border-radius:3px;background:var(--good)}
+.bf.lo{background:var(--bad)}
+.bv{width:74px;flex:none;text-align:right;font-family:'IBM Plex Mono',monospace;
+font-size:11.5px;font-variant-numeric:tabular-nums}
+.bv i{color:var(--muted);font-style:normal;font-size:10.5px}
+.fb{background:var(--surf);border:1px solid var(--line);border-left:3px solid var(--accent);
+border-radius:8px;padding:11px 14px;margin:7px 0;font-size:13.5px}
+.fb b{color:var(--accent)}
+.muted{color:var(--muted);font-size:12px}
+.hof{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px}
+.rec{background:var(--surf);border:1px solid var(--line);border-radius:9px;padding:10px 12px}
+.rec .rl{font-size:11px;color:var(--muted)}
+.rec .rv{font-family:'Chakra Petch',sans-serif;font-size:22px;font-variant-numeric:tabular-nums}
+.rec .rm{font-size:11px;color:var(--ink2)}
+.streak{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.sbig{font-family:'Chakra Petch',sans-serif;font-size:30px;line-height:1}
+.grass{display:flex;gap:2px;flex-wrap:wrap;margin-top:8px}
+.gd{width:9px;height:9px;border-radius:2px;background:var(--bad)}
+.gd.w{background:var(--good)}
+.stack{display:flex;height:22px;border-radius:5px;overflow:hidden;margin:8px 0}
+.stack div{font-size:10px;color:#fff;display:flex;align-items:center;justify-content:center}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2)}
+.legend i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:4px}
+.maps{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:560px){.maps{grid-template-columns:1fr}}
+footer{border-top:1px solid var(--line);padding:16px 18px 40px;color:var(--muted);font-size:11.5px}
+</style></head><body>
+<header><div class="wrap">
+  <p class="eyebrow">SOLO QUEUE ANALYTICS</p>
+  <h1>솔랭 해체 분석기</h1>
+  <p class="sub" id="sub"></p>
+  <input id="search" type="search" placeholder="닉네임 검색 (초성도 됩니다 — 예: ㅇㄱㅅ)" autocomplete="off">
+</div></header>
+<main class="wrap">
+  <div id="rosterView"><div class="roster" id="roster"></div>
+    <p class="muted" id="empty" style="display:none">검색 결과가 없습니다.</p></div>
+  <div id="playerView" class="hidden"></div>
+</main>
+<footer class="wrap"><span id="foot"></span> · Riot Match-V5 / Timeline-V5 기반 ·
+보정 없이 원자료 승률이며 표본이 적은 항목은 참고용입니다.</footer>
+<script id="DATA" type="application/json">__DATA__</script>
+<script>
+const D = JSON.parse(document.getElementById('DATA').textContent);
+const CHO = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const initials = s => [...s].map(c => {
+  const i = c.charCodeAt(0) - 0xAC00;
+  return (i >= 0 && i <= 11171) ? CHO[Math.floor(i / 588)] : c;
+}).join('');
+const col = new Intl.Collator('ko', {numeric: true, sensitivity: 'base'});
+D.players.sort((a, b) => col.compare(a.name, b.name));
+document.getElementById('sub').textContent =
+  D.players.length + '명 · 솔로랭크만 · ' + D.note;
+document.getElementById('foot').textContent = '생성 ' + D.built;
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const rosterEl = document.getElementById('roster');
+
+function cardHTML(p) {
+  const form = p.form.slice(-10).map(w => '<div class="f' + (w ? ' w' : '') + '"></div>').join('');
+  return '<button class="card" data-id="' + p.id + '">' +
+    '<div class="cn"><span>' + esc(p.name) + '</span>' +
+      '<span class="wrbig" style="color:' + (p.wr >= 50 ? 'var(--good)' : 'var(--bad)') + '">' +
+      p.wr + '%</span></div>' +
+    '<div class="tag">#' + esc(p.tag) + '</div>' +
+    '<div class="crow"><span class="chip">' + esc(p.role) + '</span>' +
+      '<span class="chip">' + p.n + '판</span>' +
+      '<span class="chip">KDA ' + p.kda + '</span>' +
+      '<span class="chip">관여 ' + p.kp + '%</span></div>' +
+    '<div class="form">' + form + '</div></button>';
+}
+function renderRoster(q) {
+  q = (q || '').trim().toLowerCase();
+  const qi = initials(q);
+  const list = D.players.filter(p => {
+    if (!q) return true;
+    const n = p.name.toLowerCase(), t = (p.tag || '').toLowerCase();
+    return n.includes(q) || t.includes(q) || initials(n).includes(qi);
+  });
+  rosterEl.innerHTML = list.map(cardHTML).join('');
+  document.getElementById('empty').style.display = list.length ? 'none' : 'block';
+}
+document.getElementById('search').addEventListener('input', e => renderRoster(e.target.value));
+rosterEl.addEventListener('click', e => {
+  const b = e.target.closest('.card');
+  if (b) location.hash = '#/p/' + b.dataset.id;
+});
+
+function bars(rows, unit) {
+  if (!rows || !rows.length) return '<p class="muted">표본이 부족합니다.</p>';
+  const mx = Math.max(...rows.map(r => r.wr != null ? r.wr : 0), 1);
+  return rows.map(r => {
+    const v = r.wr == null ? 0 : r.wr;
+    return '<div class="bar"><span class="bl">' + esc(r.l) + '</span>' +
+      '<span class="bt"><span class="bf' + (v < 50 ? ' lo' : '') + '" style="width:' +
+      (v / mx * 100).toFixed(1) + '%"></span></span>' +
+      '<span class="bv">' + v + (unit || '%') + ' <i>' + (r.n || 0) + '판</i></span></div>';
+  }).join('');
+}
+function box(title, inner) { return '<div class="box"><h3>' + esc(title) + '</h3>' + inner + '</div>'; }
+
+function renderPlayer(id) {
+  const p = D.players.find(x => x.id === id);
+  if (!p) { location.hash = ''; return; }
+  const o = p.obj || {};
+  const kpi = [['판수', p.n + '판'], ['승률', p.wr + '%'], ['주 라인', p.role],
+               ['KDA', p.kda], ['킬관여', p.kp + '%'], ['분당 CS', p.cspm],
+               ['시야', p.vs], ['분당딜', p.dpm]];
+  const jumps = [['hof', '명예의 전당'], ['ch', '챔피언'], ['lane', '맞라인'],
+                 ['team', '아군·적'], ['obj', '오브젝트'], ['map', '죽음의 지도'],
+                 ['habit', '습관'], ['fb', '피드백']];
+  let h = '<button class="back" id="back">← 전체 목록</button>' +
+    '<h1 style="margin:0">' + esc(p.name) + ' <span class="tag">#' + esc(p.tag) + '</span></h1>' +
+    '<p class="sub">' + esc(p.role) + ' · ' + p.n + '판 · 승률 ' + p.wr + '%</p>' +
+    '<div class="jump">' + jumps.map(j =>
+      '<button data-go="' + j[0] + '">' + j[1] + '</button>').join('') + '</div>' +
+    '<div class="kpis">' + kpi.map(k =>
+      '<div class="kpi"><div class="kl">' + k[0] + '</div><div class="kv">' + k[1] + '</div></div>'
+    ).join('') + '</div>' +
+    '<h2 id="ch">챔피언</h2><div class="grid2">' +
+      box('많이 한 챔피언', bars(p.champs)) +
+      box('라인 분포', bars(p.roles.map(r => ({l: r.r, n: r.n, wr: r.wr})))) + '</div>' +
+    '<h2 id="lane">맞라인 상대</h2><div class="grid2">' +
+      box('상대하기 편한 / 어려운 챔피언', bars(p.lane)) +
+      box('적 정글별 승률', bars(p.ejg)) + '</div>' +
+    '<h2 id="team">아군 · 적</h2><div class="grid2">' +
+      box('같이 하면 이기는 / 지는 챔피언', bars(p.ally)) +
+      box('적으로 만났을 때', bars(p.enemy)) +
+      box('아군 정글별 승률', bars(p.ajg)) + '</div>' +
+    '<h2 id="obj">오브젝트</h2><div class="grid2">' +
+      box('용을 몇 마리 먹었나', bars((o.dragon_count || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
+      box('첫 용을 언제 먹었나', bars((o.first_dragon_time || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
+      box('어떤 용을 먹었나', bars((o.first_dragon_element || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
+      box('오브젝트 선취', bars((o.firsts || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
+      box('공허 유충', bars((o.horde_bin || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
+      box('15분 상황별 결과', bars(((p.cb || {}).by_lead15 || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
+      '</div>';
+  if ((o.impact || []).length) {
+    h += box('오브젝트 영향력 (획득 시 − 내줄 시)', (o.impact || []).map(r =>
+      '<div class="bar"><span class="bl">' + esc(r.label) + '</span><span class="bt">' +
+      '<span class="bf" style="width:' + Math.min(100, r.gap * 1.6).toFixed(0) + '%"></span></span>' +
+      '<span class="bv">+' + r.gap + '%p</span></div>').join(''));
+  }
+  const F = p.fun || {};
+  // 명예의 전당 (챔피언 섹션 앞으로 이동시키기 위해 별도 삽입)
+  if ((F.hof || []).length) {
+    const hof = F.hof.map(r =>
+      '<div class="rec"><div class="rl">' + esc(r.label) + '</div>' +
+      '<div class="rv">' + r.value.toLocaleString() + '<span style="font-size:12px">' +
+      esc(r.unit || '') + '</span></div>' +
+      '<div class="rm">' + esc(r.champ) + ' · ' + esc(r.when) +
+      (r.win ? ' · 승' : ' · 패') + '</div></div>').join('');
+    h = h.replace('<h2 id="ch">', '<h2 id="hof">명예의 전당</h2><div class="hof">' + hof +
+      '</div><p class="muted">최고 기록은 판수가 많을수록 커집니다. 판수와 함께 보세요.</p>' +
+      '<h2 id="ch">');
+  }
+  // 죽음의 지도
+  const M = F.map || {};
+  if (M.grid) {
+    const cell = (v, mx, hue) => {
+      const a = mx ? Math.min(1, v / mx) : 0;
+      return '<rect x="0" y="0" width="1" height="1" fill="' + hue +
+             '" fill-opacity="' + (a * 0.92).toFixed(2) + '"/>';
+    };
+    const mapSVG = (g, hue, label) => {
+      const mx = Math.max(...g.flat(), 1);
+      let r = '<svg viewBox="0 0 ' + M.grid + ' ' + M.grid + '" class="chart" ' +
+              'style="width:100%;border:1px solid var(--line);border-radius:8px;background:var(--gl)">';
+      for (let j = 0; j < M.grid; j++) for (let i = 0; i < M.grid; i++) {
+        const v = g[j][i]; if (!v) continue;
+        r += '<rect x="' + i + '" y="' + (M.grid - 1 - j) + '" width="1" height="1" fill="' + hue +
+             '" fill-opacity="' + Math.min(1, v / mx * 0.95).toFixed(2) + '"><title>' + v + '</title></rect>';
+      }
+      r += '<line x1="0" y1="' + M.grid + '" x2="' + M.grid + '" y2="0" stroke="var(--muted)" ' +
+           'stroke-width="0.06" stroke-dasharray="0.3 0.3"/></svg>';
+      return '<div><h3 style="font-size:13px;margin:0 0 6px">' + label + '</h3>' + r + '</div>';
+    };
+    h += '<h2 id="map">죽음의 지도</h2><div class="box"><div class="maps">' +
+      mapSVG(M.deaths, 'var(--bad)', '내가 죽은 곳 (' + M.n_death + '회)') +
+      mapSVG(M.kills, 'var(--good)', '내가 킬 낸 곳 (' + M.n_kill + '회)') +
+      '</div><p class="muted">항상 블루 진영 기준으로 뒤집어 겹쳤습니다. 왼쪽 아래가 우리 본진, 대각선이 미드입니다.</p></div>';
+  }
+  // 데스 부검
+  if ((F.autopsy || []).length) {
+    const cols = {'한타 중 사망':'#6b8cc4','교전 중 사망':'#4a9d6f','소규모 갱':'#c8a24a',
+                  '솔로 패배':'#c05a5a','짤림':'#9b59b6','처형':'#7d879c'};
+    const st = F.autopsy.map(r => '<div style="width:' + r.pct + '%;background:' +
+      (cols[r.label] || '#888') + '">' + (r.pct >= 9 ? r.pct + '%' : '') + '</div>').join('');
+    const lg = F.autopsy.map(r => '<span><i style="background:' + (cols[r.label] || '#888') +
+      '"></i>' + esc(r.label) + ' ' + r.pct + '%</span>').join('');
+    h += box('데스 부검 — 어쩌다 죽었나', '<div class="stack">' + st + '</div>' +
+      '<div class="legend">' + lg + '</div>' +
+      '<p class="muted">짤림 = 여러 명에게 아군 없이 잡힘 · 솔로 패배 = 1:1에서 짐. 3분 이후만 집계.</p>');
+  }
+  // 습관 (연승 / 회색화면 / 시계)
+  h += '<h2 id="habit">습관과 리듬</h2><div class="grid2">';
+  const S = F.streak;
+  if (S) {
+    const grass = (S.recent || []).map(w => '<div class="gd' + (w ? ' w' : '') + '"></div>').join('');
+    h += box('연승 · 연패', '<div class="streak">' +
+      '<div><div class="muted">최장 연승</div><div class="sbig" style="color:var(--good)">' +
+      S.win + '</div></div>' +
+      '<div><div class="muted">최장 연패</div><div class="sbig" style="color:var(--bad)">' +
+      S.loss + '</div></div>' +
+      '<div><div class="muted">현재</div><div class="sbig">' + S.cur +
+      (S.cur_win ? '연승' : '연패') + '</div></div></div>' +
+      '<div class="grass">' + grass + '</div>' +
+      (S.expected ? '<p class="muted">이 승률·판수면 순전히 운으로도 ' + S.expected +
+        '연승 정도는 나옵니다. 그보다 훨씬 길면 진짜 상승세.</p>' : ''));
+  }
+  const DS = F.dead || {};
+  if (DS.pct != null) {
+    h += box('회색 화면 지분', '<div class="sbig">' + DS.pct + '%</div>' +
+      '<p class="muted">2~20분 동안 죽어 있던 시간 비율입니다.</p>' +
+      bars((DS.curve || []).filter(c => c.m % 4 === 0).map(c =>
+        ({l: c.m + '분', n: 0, wr: c.v}))));
+  }
+  if ((F.clock || []).length) {
+    h += box('언제 이기나 (한국 시간)', bars(F.clock.map(r =>
+      ({l: r.label, n: r.n, wr: r.winrate}))));
+  }
+  h += '</div>';
+
+  h += '<h2 id="fb">실력 향상 피드백</h2>';
+  h += (p.fb && p.fb.length)
+    ? p.fb.map(t => '<div class="fb">' + t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>') + '</div>').join('')
+    : '<p class="muted">표본이 더 쌓이면 제공됩니다.</p>';
+
+  const v = document.getElementById('playerView');
+  v.innerHTML = h;
+  v.querySelector('#back').onclick = () => { location.hash = ''; };
+  v.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
+    const el = document.getElementById(b.dataset.go);
+    if (el) el.scrollIntoView({behavior: 'smooth', block: 'start'});
+  });
+}
+function route() {
+  const m = location.hash.match(/^#\/p\/(.+)$/);
+  const rv = document.getElementById('rosterView'), pv = document.getElementById('playerView');
+  if (m) { rv.classList.add('hidden'); pv.classList.remove('hidden'); renderPlayer(m[1]); window.scrollTo(0, 0); }
+  else { pv.classList.add('hidden'); rv.classList.remove('hidden'); }
+}
+window.addEventListener('hashchange', route);
+renderRoster(''); route();
+</script></body></html>
