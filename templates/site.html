@@ -153,6 +153,7 @@ footer{border-top:1px solid var(--line);padding:16px 18px 40px;color:var(--muted
 <script id="DATA" type="application/json">__DATA__</script>
 <script>
 const D = JSON.parse(document.getElementById('DATA').textContent);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const CHO = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
 const initials = s => [...s].map(c => {
   const i = c.charCodeAt(0) - 0xAC00;
@@ -182,7 +183,6 @@ document.getElementById('foot').textContent = '생성 ' + D.built;
             : (stale ? ' <span style="color:var(--bad)">· 데이터가 오래됐습니다</span>' : ''));
 })();
 
-const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const rosterEl = document.getElementById('roster');
 
 function cardHTML(p) {
