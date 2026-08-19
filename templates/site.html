@@ -42,19 +42,35 @@ margin:0;letter-spacing:-.01em}
 border:1px solid var(--line);background:var(--bg);color:var(--ink);font-family:inherit}
 #search:focus{outline:2px solid var(--accent);outline-offset:1px}
 main{padding:22px 18px 50px}
-.roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:11px}
-.card{background:var(--surf);border:1px solid var(--line);border-radius:11px;padding:14px 15px;
+/* 첫 화면은 '사람 고르기'가 목적이라 카드를 얇게 — 지표 비교는 '전체 순위' 탭에 있다 */
+.roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(184px,1fr));gap:8px}
+/* 좁은 화면에서도 2열은 유지 — 1열이면 18명이 세로로 너무 길어진다 */
+@media(max-width:520px){.roster{grid-template-columns:repeat(2,1fr);gap:6px}
+.card{padding:8px 10px}.cn{font-size:13.5px}.wrbig{font-size:15px}.csub{font-size:11px}}
+.card{background:var(--surf);border:1px solid var(--line);border-radius:10px;padding:9px 12px;
 cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%;transition:border-color .12s}
 .card:hover,.card:focus-visible{border-color:var(--accent);outline:none}
-.cn{font-weight:600;font-size:16px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.cn{font-weight:600;font-size:14.5px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.cn>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.csub{margin-top:2px;font-size:11.5px;color:var(--muted);
+overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tag{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)}
 .crow{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;font-size:11.5px}
 .chip{background:var(--chip);border-radius:20px;padding:2px 9px;color:var(--ink2)}
-.wrbig{font-family:'Chakra Petch',sans-serif;font-size:19px;font-variant-numeric:tabular-nums}
+.wrbig{font-family:'Chakra Petch',sans-serif;font-size:16px;font-variant-numeric:tabular-nums;flex:none}
 .form{display:flex;gap:2px;margin-top:9px}
 .f{width:100%;height:5px;border-radius:2px;background:var(--bad)}
 .f.w{background:var(--good)}
 .hidden{display:none!important}
+.rctl{display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap;margin:0 0 10px}
+.rctl label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted)}
+.rctl select{padding:6px 9px;border-radius:7px;border:1px solid var(--line);background:var(--bg);
+color:var(--ink);font-family:inherit;font-size:12.5px}
+.rctl .chk{flex-direction:row;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2);
+padding-bottom:7px;cursor:pointer}
+.rgroup{grid-column:1/-1;font-size:11px;letter-spacing:.08em;color:var(--muted);
+text-transform:uppercase;padding:8px 2px 2px;border-bottom:1px solid var(--line);margin-top:4px}
+.rgroup:first-child{margin-top:0}
 .back{background:none;border:none;color:var(--accent);cursor:pointer;font:inherit;padding:0;
 margin-bottom:12px;font-size:13.5px}
 .jump{display:flex;gap:5px;overflow-x:auto;padding:9px 0;margin-bottom:14px;
@@ -195,7 +211,17 @@ footer{border-top:1px solid var(--line);padding:16px 18px 40px;color:var(--muted
       <p class="muted" id="lbNote"></p>
       <div id="h2hOut" style="margin-top:18px"></div>
     </div>
-    <div id="paneList"><div class="roster" id="roster"></div>
+    <div id="paneList">
+      <div class="rctl">
+        <label>정렬<select id="rSort">
+          <option value="n">판수 많은 순</option>
+          <option value="name">가나다</option>
+          <option value="wr">승률</option>
+          <option value="form">최근 폼</option>
+        </select></label>
+        <label class="chk"><input type="checkbox" id="rGroup"> 라인별로 묶기</label>
+      </div>
+      <div class="roster" id="roster"></div>
     <p class="muted" id="empty" style="display:none">검색 결과가 없습니다.</p></div></div>
   <div id="playerView" class="hidden"></div>
 </main>
@@ -264,29 +290,56 @@ document.getElementById('foot').textContent = '생성 ' + D.built;
 const rosterEl = document.getElementById('roster');
 
 function cardHTML(p) {
-  const form = p.form.slice(-10).map(w => '<div class="f' + (w ? ' w' : '') + '"></div>').join('');
-  return '<button class="card" data-id="' + p.id + '">' +
+  // 이름·승률·라인·판수만 남긴다. 태그/KDA/관여/최근폼은 마우스를 올리면 보이고,
+  // 상세는 카드를 누르면 나오므로 첫 화면에 다 펼칠 이유가 없다(18명이면 그게 난잡함의 원인).
+  const w = p.form.slice(-10).filter(Boolean).length, g = p.form.slice(-10).length;
+  const tip = p.name + '#' + p.tag + ' · ' + p.role + ' · ' + p.n + '판 · 승률 ' + p.wr +
+    '% · KDA ' + p.kda + ' · 관여 ' + p.kp + '%' + (g ? ' · 최근 ' + g + '판 ' + w + '승' : '');
+  return '<button class="card" data-id="' + p.id + '" title="' + esc(tip) + '">' +
     '<div class="cn"><span>' + esc(p.name) + '</span>' +
       '<span class="wrbig" style="color:' + (p.wr >= 50 ? 'var(--good)' : 'var(--bad)') + '">' +
       p.wr + '%</span></div>' +
-    '<div class="tag">#' + esc(p.tag) + '</div>' +
-    '<div class="crow"><span class="chip">' + esc(p.role) + '</span>' +
-      '<span class="chip">' + p.n + '판</span>' +
-      '<span class="chip">KDA ' + p.kda + '</span>' +
-      '<span class="chip">관여 ' + p.kp + '%</span></div>' +
-    '<div class="form">' + form + '</div></button>';
+    '<div class="csub">' + esc(p.role) + ' · ' + p.n + '판</div></button>';
+}
+const ROLE_ORDER = ['탑', '정글', '미드', '원딜', '서포터', '미상'];
+function formScore(p) {
+  const f = (p.form || []).slice(-10);
+  return f.length ? f.reduce((a, b) => a + b, 0) / f.length : 0;
 }
 function renderRoster(q) {
   q = (q || '').trim().toLowerCase();
   const qi = initials(q);
-  const list = D.players.filter(p => {
+  let list = D.players.filter(p => {
     if (!q) return true;
     const n = p.name.toLowerCase(), t = (p.tag || '').toLowerCase();
     return n.includes(q) || t.includes(q) || initials(n).includes(qi);
   });
-  rosterEl.innerHTML = list.map(cardHTML).join('');
+  const sort = (document.getElementById('rSort') || {}).value || 'n';
+  const cmp = {
+    n: (a, b) => b.n - a.n,
+    name: (a, b) => col.compare(a.name, b.name),
+    wr: (a, b) => b.wr - a.wr,
+    form: (a, b) => formScore(b) - formScore(a),
+  }[sort] || ((a, b) => b.n - a.n);
+  list = [...list].sort(cmp);
+
+  if ((document.getElementById('rGroup') || {}).checked) {
+    const by = {};
+    list.forEach(p => { (by[p.role] = by[p.role] || []).push(p); });
+    const order = ROLE_ORDER.filter(r => by[r])
+      .concat(Object.keys(by).filter(r => !ROLE_ORDER.includes(r)));
+    rosterEl.innerHTML = order.map(r =>
+      '<div class="rgroup">' + esc(r) + ' ' + by[r].length + '명</div>' +
+      by[r].map(cardHTML).join('')).join('');
+  } else {
+    rosterEl.innerHTML = list.map(cardHTML).join('');
+  }
   document.getElementById('empty').style.display = list.length ? 'none' : 'block';
 }
+['rSort', 'rGroup'].forEach(id => {
+  const e = document.getElementById(id);
+  if (e) e.onchange = () => renderRoster(document.getElementById('search').value);
+});
 // ---------- 전체 순위 ----------
 const METRICS = [
   {k:'wr', l:'승률', f:p=>p.wr, u:'%', hi:true},
