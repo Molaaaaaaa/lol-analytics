@@ -87,6 +87,12 @@ border-radius:8px;padding:11px 14px;margin:7px 0;font-size:13.5px}
 .fb b{color:var(--accent)}
 .muted{color:var(--muted);font-size:12px}
 .updated{font-size:12px;color:var(--ink2);margin:10px 0 0;display:flex;gap:8px;align-items:center}
+.themebtn{position:absolute;top:22px;right:18px;background:var(--chip);border:1px solid var(--line);
+color:var(--ink2);border-radius:20px;padding:6px 13px;font:inherit;font-size:12.5px;cursor:pointer;
+display:flex;align-items:center;gap:6px}
+.themebtn:hover,.themebtn:focus-visible{border-color:var(--accent);color:var(--accent);outline:none}
+header{position:relative}
+@media(max-width:520px){.themebtn{top:14px;right:14px;padding:5px 10px;font-size:11.5px}}
 .updated .dot{width:7px;height:7px;border-radius:50%;background:var(--good);flex:none}
 .updated .dot.stale{background:var(--bad)}
 .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
@@ -123,6 +129,35 @@ font:inherit;font-weight:600;font-size:13px;cursor:pointer}
 .ldc .k{font-size:11px;color:var(--muted)}
 .two{display:flex;gap:22px;flex-wrap:wrap}
 .two .v{font-family:'Chakra Petch',sans-serif;font-size:30px;font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:2px;margin:14px 0 0;border-bottom:1px solid var(--line)}
+.tabs button{background:none;border:none;border-bottom:2px solid transparent;color:var(--ink2);
+padding:9px 15px;font:inherit;font-size:14px;cursor:pointer}
+.tabs button[aria-selected=true]{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.lbctl{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin:14px 0 10px}
+.lbctl label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted)}
+.lbctl select{padding:7px 9px;border-radius:7px;border:1px solid var(--line);background:var(--bg);
+color:var(--ink);font-family:inherit;font-size:13px}
+.lbctl .chk{flex-direction:row;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2);padding-bottom:8px}
+.lb{width:100%;border-collapse:collapse;font-size:13px}
+.lb th{text-align:left;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;
+color:var(--muted);padding:7px 8px;border-bottom:1px solid var(--line)}
+.lb td{padding:8px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.lb tr:hover td{background:var(--chip)}
+.lb .rk{width:34px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+.lb .nm{cursor:pointer;font-weight:500}
+.lb .nm:hover{color:var(--accent)}
+.lb .val{text-align:right;font-family:'IBM Plex Mono',monospace;font-weight:600}
+.rolebadge{font-size:10.5px;background:var(--chip);border-radius:10px;padding:1px 7px;color:var(--ink2);margin-left:6px}
+.effrow{display:grid;grid-template-columns:40px 1fr 70px;gap:8px;align-items:center;
+padding:6px 2px;border-bottom:1px solid var(--line);font-size:12.5px}
+.effrow .sd{font-size:10.5px;color:var(--muted)}
+.effrow.dim{opacity:.5}
+.effrow .df{text-align:right;font-family:'IBM Plex Mono',monospace;font-weight:600}
+.mrow{display:grid;grid-template-columns:34px 1fr 74px 58px 50px;gap:7px;align-items:center;
+padding:6px 3px;border-bottom:1px solid var(--line);font-size:12.5px}
+.mrow.hl{background:var(--chip)}
+.h2h{font-size:13px;line-height:1.75}
+.h2h b{color:var(--accent)}
 .streak{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
 .sbig{font-family:'Chakra Petch',sans-serif;font-size:30px;line-height:1}
 .grass{display:flex;gap:2px;flex-wrap:wrap;margin-top:8px}
@@ -136,7 +171,7 @@ font:inherit;font-weight:600;font-size:13px;cursor:pointer}
 @media(max-width:560px){.maps{grid-template-columns:1fr}}
 footer{border-top:1px solid var(--line);padding:16px 18px 40px;color:var(--muted);font-size:11.5px}
 </style></head><body>
-<header><div class="wrap">
+<header><button class="themebtn" id="themeBtn" type="button" aria-label="화면 테마 전환"><span id="themeIcon">🌓</span><span id="themeLabel">자동</span></button><div class="wrap">
   <p class="eyebrow">SOLO QUEUE ANALYTICS</p>
   <h1>솔랭 해체 분석기</h1>
   <p class="sub" id="sub"></p>
@@ -144,8 +179,23 @@ footer{border-top:1px solid var(--line);padding:16px 18px 40px;color:var(--muted
   <input id="search" type="search" placeholder="닉네임 검색 (초성도 됩니다 — 예: ㅇㄱㅅ)" autocomplete="off">
 </div></header>
 <main class="wrap">
-  <div id="rosterView"><div class="roster" id="roster"></div>
-    <p class="muted" id="empty" style="display:none">검색 결과가 없습니다.</p></div>
+  <div id="rosterView">
+    <div class="tabs" role="tablist">
+      <button id="tabList" role="tab" aria-selected="true">닉네임 목록</button>
+      <button id="tabRank" role="tab" aria-selected="false">전체 순위</button>
+    </div>
+    <div id="paneRank" class="hidden">
+      <div class="lbctl">
+        <label>기준<select id="lbMetric"></select></label>
+        <label class="chk"><input type="checkbox" id="lbRole"> 같은 라인끼리만</label>
+        <label>라인<select id="lbRoleSel"></select></label>
+      </div>
+      <div id="lbOut"></div>
+      <p class="muted" id="lbNote"></p>
+      <div id="h2hOut" style="margin-top:18px"></div>
+    </div>
+    <div id="paneList"><div class="roster" id="roster"></div>
+    <p class="muted" id="empty" style="display:none">검색 결과가 없습니다.</p></div></div>
   <div id="playerView" class="hidden"></div>
 </main>
 <footer class="wrap"><span id="foot"></span> · Riot Match-V5 / Timeline-V5 기반 ·
@@ -154,6 +204,33 @@ footer{border-top:1px solid var(--line);padding:16px 18px 40px;color:var(--muted
 <script>
 const D = JSON.parse(document.getElementById('DATA').textContent);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// ---------- 테마: 자동(시스템) → 라이트 → 다크 순환 ----------
+(function () {
+  const MODES = [
+    {k: 'auto',  icon: '🌓', label: '자동'},
+    {k: 'light', icon: '☀️', label: '라이트'},
+    {k: 'dark',  icon: '🌙', label: '다크'},
+  ];
+  const btn = document.getElementById('themeBtn');
+  const ic = document.getElementById('themeIcon'), lb = document.getElementById('themeLabel');
+  let cur = 'auto';
+  try { cur = localStorage.getItem('theme') || 'auto'; } catch (e) {}
+  function apply(k) {
+    cur = MODES.some(m => m.k === k) ? k : 'auto';
+    const root = document.documentElement;
+    if (cur === 'auto') root.removeAttribute('data-theme');
+    else root.setAttribute('data-theme', cur);
+    const m = MODES.find(x => x.k === cur);
+    if (ic) ic.textContent = m.icon;
+    if (lb) lb.textContent = m.label;
+    try { localStorage.setItem('theme', cur); } catch (e) {}
+  }
+  apply(cur);
+  if (btn) btn.onclick = () => {
+    const i = MODES.findIndex(m => m.k === cur);
+    apply(MODES[(i + 1) % MODES.length].k);
+  };
+})();
 const CHO = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
 const initials = s => [...s].map(c => {
   const i = c.charCodeAt(0) - 0xAC00;
@@ -209,6 +286,83 @@ function renderRoster(q) {
   rosterEl.innerHTML = list.map(cardHTML).join('');
   document.getElementById('empty').style.display = list.length ? 'none' : 'block';
 }
+// ---------- 전체 순위 ----------
+const METRICS = [
+  {k:'wr', l:'승률', f:p=>p.wr, u:'%', hi:true},
+  {k:'kda', l:'KDA', f:p=>p.kda, u:'', hi:true},
+  {k:'kp', l:'킬 관여율', f:p=>p.kp, u:'%', hi:true},
+  {k:'cspm', l:'분당 CS', f:p=>p.cspm, u:'', hi:true},
+  {k:'dpm', l:'분당 딜', f:p=>p.dpm, u:'', hi:true},
+  {k:'vs', l:'시야 점수', f:p=>p.vs, u:'', hi:true},
+  {k:'ldg', l:'15분 골드 격차', f:p=>((p.ld||{}).m15||{}).gold, u:'G', hi:true},
+  {k:'ldc', l:'15분 CS 격차', f:p=>((p.ld||{}).m15||{}).cs, u:'', hi:true},
+  {k:'dead', l:'죽어 있던 시간(낮을수록 좋음)', f:p=>((p.fun||{}).dead||{}).pct, u:'%', hi:false},
+  {k:'throw', l:'던진 판(낮을수록 좋음)', f:p=>(p.cb||{}).throw_rate, u:'%', hi:false},
+  {k:'come', l:'뒤집은 판', f:p=>(p.cb||{}).comeback_rate, u:'%', hi:true},
+  {k:'streak', l:'최장 연승', f:p=>((p.fun||{}).streak||{}).win, u:'연승', hi:true},
+  {k:'penta', l:'펜타킬', f:p=>{const h=((p.fun||{}).hof||[]).find(x=>x.label==='펜타킬');return h?h.value:0;}, u:'회', hi:true},
+  {k:'fb', l:'퍼스트블러드', f:p=>{const h=((p.fun||{}).hof||[]).find(x=>x.label==='퍼스트블러드');return h?h.value:0;}, u:'회', hi:true},
+];
+const ROLE_SENSITIVE = new Set(['cspm','dpm','vs','ldg','ldc','kp']);
+const mSel = document.getElementById('lbMetric');
+METRICS.forEach(m=>{const o=document.createElement('option');o.value=m.k;o.textContent=m.l;mSel.appendChild(o);});
+const roleSel = document.getElementById('lbRoleSel');
+[...new Set(D.players.map(p=>p.role))].sort((a,b)=>col.compare(a,b)).forEach(r=>{
+  const o=document.createElement('option');o.value=r;o.textContent=r;roleSel.appendChild(o);});
+
+function renderRank(){
+  const m = METRICS.find(x=>x.k===mSel.value)||METRICS[0];
+  const onlyRole = document.getElementById('lbRole').checked;
+  const want = roleSel.value;
+  let rows = D.players.map(p=>({p, v:m.f(p)})).filter(r=>r.v!=null && !isNaN(r.v));
+  if (onlyRole) rows = rows.filter(r=>r.p.role===want);
+  rows.sort((a,b)=> m.hi ? b.v-a.v : a.v-b.v);
+  const out = document.getElementById('lbOut');
+  if(!rows.length){ out.innerHTML='<p class="muted">해당 조건에 표시할 사람이 없습니다.</p>'; return; }
+  out.innerHTML = '<table class="lb"><thead><tr><th></th><th>닉네임</th>'+
+    '<th style="text-align:right">'+esc(m.l)+'</th><th style="text-align:right">판수</th></tr></thead><tbody>'+
+    rows.map((r,i)=>'<tr><td class="rk">'+(i+1)+'</td>'+
+      '<td class="nm" data-id="'+r.p.id+'">'+esc(r.p.name)+
+      '<span class="rolebadge">'+esc(r.p.role)+'</span></td>'+
+      '<td class="val">'+(typeof r.v==='number'? Math.round(r.v*10)/10 : r.v)+esc(m.u)+'</td>'+
+      '<td class="val" style="color:var(--muted);font-weight:400">'+r.p.n+'</td></tr>').join('')+
+    '</tbody></table>';
+  const warn = (!onlyRole && ROLE_SENSITIVE.has(m.k));
+  document.getElementById('lbNote').innerHTML = onlyRole
+    ? esc(want)+' 포지션만 비교했습니다.'
+    : (warn ? '⚠ 라인이 섞여 있습니다. 이 지표는 포지션마다 기준이 달라 그대로 비교하면 안 됩니다. 위 체크박스를 켜세요.'
+            : '판수가 적은 사람은 순위가 크게 흔들립니다.');
+  out.querySelectorAll('.nm').forEach(td=>td.onclick=()=>{location.hash='#/p/'+td.dataset.id;});
+}
+function renderH2H(){
+  const el = document.getElementById('h2hOut');
+  const rows = D.h2h||[];
+  if(!el) return;
+  if(!rows.length){ el.innerHTML='<p class="muted">아직 서로 만난 판이 없습니다.</p>'; return; }
+  const same = rows.filter(r=>r.same), vs = rows.filter(r=>!r.same);
+  const pair = {};
+  vs.forEach(r=>{const k=r.a+' vs '+r.b; pair[k]=pair[k]||{n:0,aw:0,a:r.a,b:r.b}; pair[k].n++; pair[k].aw+=r.awin?1:0;});
+  const duo = {};
+  same.forEach(r=>{const k=r.a+' + '+r.b; duo[k]=duo[k]||{n:0,w:0}; duo[k].n++; duo[k].w+=r.awin?1:0;});
+  el.innerHTML = '<h3 style="font-size:15px;margin:0 0 6px">우리끼리 만난 판</h3>'+
+    '<p class="h2h">총 <b>'+rows.length+'판</b> — 같은 팀 <b>'+same.length+'판</b> / 맞붙은 <b>'+vs.length+'판</b></p>'+
+    (Object.keys(duo).length? '<p class="h2h">👥 '+Object.entries(duo).map(([k,v])=>
+      esc(k)+' '+v.n+'판 '+Math.round(v.w/v.n*100)+'%').join(' · ')+'</p>':'')+
+    (Object.keys(pair).length? '<p class="h2h">⚔ '+Object.entries(pair).map(([k,v])=>
+      esc(v.a)+' '+v.aw+'승 '+(v.n-v.aw)+'패 '+esc(v.b)).join(' · ')+'</p>':'');
+}
+mSel.onchange=renderRank; roleSel.onchange=renderRank;
+document.getElementById('lbRole').onchange=renderRank;
+function showTab(rank){
+  document.getElementById('paneRank').classList.toggle('hidden', !rank);
+  document.getElementById('paneList').classList.toggle('hidden', rank);
+  document.getElementById('tabRank').setAttribute('aria-selected', rank);
+  document.getElementById('tabList').setAttribute('aria-selected', !rank);
+  if(rank){ renderRank(); renderH2H(); }
+}
+document.getElementById('tabRank').onclick=()=>showTab(true);
+document.getElementById('tabList').onclick=()=>showTab(false);
+
 document.getElementById('search').addEventListener('input', e => renderRoster(e.target.value));
 rosterEl.addEventListener('click', e => {
   const b = e.target.closest('.card');
@@ -264,7 +418,7 @@ function renderPlayer(id) {
                ['시야', p.vs], ['분당딜', p.dpm]];
   const jumps = [['live', '최근 경기'], ['hof', '명예의 전당'], ['ch', '챔피언'], ['query', '조합 조회'],
                  ['lane', '맞라인'], ['team', '아군·적'], ['obj', '오브젝트'],
-                 ['map', '죽음의 지도'], ['habit', '습관'], ['fb', '피드백']];
+                 ['map', '죽음의 지도'], ['habit', '습관'], ['games', '경기 목록'], ['fb', '고칠 점']];
   let h = '<button class="back" id="back">← 전체 목록</button>' +
     '<h1 style="margin:0">' + esc(p.name) + ' <span class="tag">#' + esc(p.tag) + '</span></h1>' +
     '<p class="sub">' + esc(p.role) + ' · ' + p.n + '판 · 승률 ' + p.wr + '%</p>' +
@@ -297,9 +451,23 @@ function renderPlayer(id) {
     '<div class="grid2">' +
       box('상대하기 편한 / 어려운 챔피언', bars(p.lane)) +
       box('적 정글별 승률', bars(p.ejg)) + '</div>' +
-    '<h2 id="team">아군 · 적</h2><div class="grid2">' +
-      box('같이 하면 이기는 / 지는 챔피언', bars(p.ally)) +
-      box('적으로 만났을 때', bars(p.enemy)) +
+    '<h2 id="team">아군 · 적</h2>' +
+    (function(){
+      const E = p.champ_eff || [], M = p.champ_eff_meta || {};
+      if(!E.length) return box('같이 하면 / 맞서면', '<p class="muted">아직 판수가 모자라요.</p>');
+      const rows = E.map(r =>
+        '<div class="effrow' + (r.sig ? '' : ' dim') + '">' +
+        '<span class="sd">' + esc(r.side) + '</span>' +
+        '<span>' + esc(r.l) + ' <span class="sd">' + r.n + '판</span></span>' +
+        '<span class="df" style="color:' + (r.diff >= 0 ? 'var(--good)' : 'var(--bad)') + '">' +
+        (r.diff >= 0 ? '+' : '') + r.diff + '%p</span></div>').join('');
+      return box('궁합 — 내 평균(' + M.base + '%) 대비',
+        rows +
+        '<p class="muted">표본이 적으면 내 평균 쪽으로 당겨서 계산했습니다(베이즈 축소). ' +
+        '흐릿한 줄은 우연일 수 있는 차이입니다.' +
+        (M.hidden ? ' 판수가 모자란 챔피언 ' + M.hidden + '종은 숨겼습니다.' : '') + '</p>');
+    })() +
+    '<div class="grid2">' +
       box('아군 정글별 승률', bars(p.ajg)) + '</div>' +
     '<h2 id="obj">오브젝트</h2>' +
     (function () {
@@ -338,7 +506,7 @@ function renderPlayer(id) {
       '<div class="rec' + (r.hero ? ' hero' : '') + '"><div class="rl">' + esc(r.label) + '</div>' +
       '<div class="rv">' + r.value.toLocaleString() + '<span style="font-size:12px">' +
       esc(r.unit || '') + '</span></div>' +
-      '<div class="rm">' + esc(r.champ) + ' · ' + esc(r.when) +
+      '<div class="rm" data-when="' + esc(r.when) + '">' + esc(r.champ) + ' · ' + esc(r.when) +
       (r.win ? ' · 승' : ' · 패') + '</div></div>').join('');
     h = h.replace('<h2 id="ch">', '<h2 id="hof">명예의 전당</h2><div class="hof">' + hof +
       '</div><p class="muted">최고 기록은 판수가 많을수록 커집니다. 판수와 함께 보세요.</p>' +
@@ -428,6 +596,20 @@ function renderPlayer(id) {
       '</div><div id="qout"></div></div>';
   }
 
+  // ---- 경기 목록 ----
+  if ((p.recent || []).length) {
+    h += '<h2 id="games">최근 경기 목록</h2><div class="box">' +
+      '<div class="mrow" style="color:var(--muted);font-size:10.5px">' +
+      '<span>결과</span><span>챔피언</span><span>KDA</span><span>CS</span><span>날짜</span></div>' +
+      p.recent.map(g => '<div class="mrow" id="m_' + esc(g.id) + '">' +
+        '<span class="' + (g.w ? 'tagw' : 'tagl') + '">' + (g.w ? '승' : '패') + '</span>' +
+        '<span>' + esc(g.c) + ' <span class="muted">' + esc(g.r) + ' · ' + g.m + '분</span></span>' +
+        '<span style="font-family:IBM Plex Mono,monospace">' + esc(g.kda) + '</span>' +
+        '<span style="font-family:IBM Plex Mono,monospace">' + g.cs + '</span>' +
+        '<span class="muted">' + esc(g.d.slice(5)) + '</span></div>').join('') +
+      '</div>';
+  }
+
   h += '<h2 id="fb">고칠 점</h2>';
   h += (p.fb && p.fb.length)
     ? p.fb.map(t => '<div class="fb">' + t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>') + '</div>').join('')
@@ -465,6 +647,23 @@ function renderPlayer(id) {
   }
   ids.forEach(i => { const el = document.getElementById(i); if (el) el.onchange = runQuery; });
   runQuery();
+
+  // 명예의 전당 카드 클릭 → 같은 날짜 경기로 스크롤 + 강조
+  v.querySelectorAll('.rec').forEach(card => {
+    const when = (card.querySelector('[data-when]') || {}).dataset?.when;
+    if (!when) return;
+    const hit = (p.recent || []).find(g => g.d === when);
+    if (!hit) return;                    // 최근 목록에 없는 옛 기록은 클릭 대상이 아니다
+    card.style.cursor = 'pointer';
+    card.title = '이 경기로 이동';
+    card.onclick = () => {
+      const el = document.getElementById('m_' + hit.id);
+      if (!el) return;
+      v.querySelectorAll('.mrow.hl').forEach(x => x.classList.remove('hl'));
+      el.classList.add('hl');
+      el.scrollIntoView({behavior: 'smooth', block: 'center'});
+    };
+  });
 
   const lb = document.getElementById('liveBtn'), lo = document.getElementById('liveOut');
   if (lb) lb.onclick = async () => {
