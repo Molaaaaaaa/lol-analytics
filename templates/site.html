@@ -214,8 +214,8 @@ footer{border-top:1px solid var(--line);padding:16px 18px 40px;color:var(--muted
     <div id="paneList">
       <div class="rctl">
         <label>정렬<select id="rSort">
-          <option value="n">판수 많은 순</option>
           <option value="name">가나다</option>
+          <option value="n">판수 많은 순</option>
           <option value="wr">승률</option>
           <option value="form">최근 폼</option>
         </select></label>
@@ -265,6 +265,9 @@ const initials = s => [...s].map(c => {
 }).join('');
 const col = new Intl.Collator('ko', {numeric: true, sensitivity: 'base'});
 const CH = D.champ_ko || {};
+// Riot 은 'FiddleSticks', Data Dragon 은 'Fiddlesticks' — 대소문자가 다르다
+const CHL = Object.fromEntries(Object.entries(CH).map(([k, v]) => [k.toLowerCase(), v]));
+const kch = c => CH[c] || CHL[String(c || '').toLowerCase()] || c;
 const POS = {TOP: '탑', JUNGLE: '정글', MIDDLE: '미드', BOTTOM: '원딜', UTILITY: '서포터'};
 D.players.sort((a, b) => col.compare(a.name, b.name));
 document.getElementById('sub').textContent =
@@ -314,13 +317,13 @@ function renderRoster(q) {
     const n = p.name.toLowerCase(), t = (p.tag || '').toLowerCase();
     return n.includes(q) || t.includes(q) || initials(n).includes(qi);
   });
-  const sort = (document.getElementById('rSort') || {}).value || 'n';
+  const sort = (document.getElementById('rSort') || {}).value || 'name';
   const cmp = {
     n: (a, b) => b.n - a.n,
     name: (a, b) => col.compare(a.name, b.name),
     wr: (a, b) => b.wr - a.wr,
     form: (a, b) => formScore(b) - formScore(a),
-  }[sort] || ((a, b) => b.n - a.n);
+  }[sort] || ((a, b) => col.compare(a.name, b.name));
   list = [...list].sort(cmp);
 
   if ((document.getElementById('rGroup') || {}).checked) {
@@ -370,22 +373,39 @@ function renderRank(){
   const want = roleSel.value;
   let rows = D.players.map(p=>({p, v:m.f(p)})).filter(r=>r.v!=null && !isNaN(r.v));
   if (onlyRole) rows = rows.filter(r=>r.p.role===want);
-  rows.sort((a,b)=> m.hi ? b.v-a.v : a.v-b.v);
+  // 승률은 표본이 47~465판으로 제각각이라 원자료로 줄세우면 표본 잡음이 등수가 된다.
+  // 윌슨 95% 하한으로 정렬하고 구간을 함께 보여준다.
+  if (m.k === 'wr') {
+    rows.forEach(r => { const ci = wilson(Math.round(r.v/100*r.p.n), r.p.n);
+      r.lo = ci[0]*100; r.hi2 = ci[1]*100; });
+    rows.sort((a,b)=> b.lo - a.lo);
+  } else {
+    rows.sort((a,b)=> m.hi ? b.v-a.v : a.v-b.v);
+  }
+  // 동점은 같은 등수로 (연승·펜타킬은 대부분이 동점이라 인덱스를 등수로 쓰면 사실상 가나다순이 된다)
+  let rk = 0, prev = null;
+  rows.forEach((r, i) => { const key = m.k === 'wr' ? r.lo : r.v;
+    if (key !== prev) { rk = i + 1; prev = key; } r.rk = rk; });
   const out = document.getElementById('lbOut');
   if(!rows.length){ out.innerHTML='<p class="muted">해당 조건에 표시할 사람이 없습니다.</p>'; return; }
   out.innerHTML = '<table class="lb"><thead><tr><th></th><th>닉네임</th>'+
     '<th style="text-align:right">'+esc(m.l)+'</th><th style="text-align:right">판수</th></tr></thead><tbody>'+
-    rows.map((r,i)=>'<tr><td class="rk">'+(i+1)+'</td>'+
+    rows.map((r,i)=>'<tr><td class="rk">'+r.rk+'</td>'+
       '<td class="nm" data-id="'+r.p.id+'">'+esc(r.p.name)+
       '<span class="rolebadge">'+esc(r.p.role)+'</span></td>'+
-      '<td class="val">'+(typeof r.v==='number'? Math.round(r.v*10)/10 : r.v)+esc(m.u)+'</td>'+
+      '<td class="val">'+(typeof r.v==='number'? Math.round(r.v*10)/10 : r.v)+esc(m.u)+
+        (m.k==='wr' ? '<span style="color:var(--muted);font-weight:400;font-size:11px"> '+
+          Math.round(r.lo)+'~'+Math.round(r.hi2)+'</span>' : '')+'</td>'+
       '<td class="val" style="color:var(--muted);font-weight:400">'+r.p.n+'</td></tr>').join('')+
     '</tbody></table>';
   const warn = (!onlyRole && ROLE_SENSITIVE.has(m.k));
-  document.getElementById('lbNote').innerHTML = onlyRole
-    ? esc(want)+' 포지션만 비교했습니다.'
+  let note = onlyRole
+    ? esc(want)+' 포지션인 사람만 골랐습니다. 다만 수치 자체는 그 사람의 <b>전 라인 평균</b>이라 부계정 라인이 섞여 있습니다.'
     : (warn ? '⚠ 라인이 섞여 있습니다. 이 지표는 포지션마다 기준이 달라 그대로 비교하면 안 됩니다. 위 체크박스를 켜세요.'
             : '판수가 적은 사람은 순위가 크게 흔들립니다.');
+  if (m.k === 'wr') note = '18명 전원의 95% 구간이 서로 겹칩니다 — 이 순서는 실력 차이라기보다 <b>표본 잡음</b>입니다. '
+    + '표본이 많을수록 위로 오도록 윌슨 하한으로 정렬했습니다.';
+  document.getElementById('lbNote').innerHTML = note;
   out.querySelectorAll('.nm').forEach(td=>td.onclick=()=>{location.hash='#/p/'+td.dataset.id;});
 }
 function renderH2H(){
@@ -524,7 +544,7 @@ function renderPlayer(id) {
         rows +
         '<p class="muted">표본이 적으면 내 평균 쪽으로 당겨서 계산했습니다(베이즈 축소). ' +
         '흐릿한 줄은 우연일 수 있는 차이입니다.' +
-        (M.hidden ? ' 판수가 모자란 챔피언 ' + M.hidden + '종은 숨겼습니다.' : '') + '</p>');
+        (M.hidden ? ' 판수가 모자란 아군·적 조합 ' + M.hidden + '건은 숨겼습니다.' : '') + '</p>');
     })() +
     '<div class="grid2">' +
       box('아군 정글별 승률', bars(p.ajg)) + '</div>' +
@@ -548,10 +568,12 @@ function renderPlayer(id) {
       box('15분 상황별', bars(((p.cb || {}).by_lead15 || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
       '</div>';
   if ((o.impact || []).length) {
+    const gmax = Math.max(...(o.impact || []).map(r => Math.abs(r.gap)), 1);
     h += box('뺏기면 지는 순서', (o.impact || []).map(r =>
       '<div class="bar"><span class="bl">' + esc(r.label) + '</span><span class="bt">' +
-      '<span class="bf" style="width:' + Math.min(100, r.gap * 1.6).toFixed(0) + '%"></span></span>' +
-      '<span class="bv">+' + r.gap + '%p</span></div>').join(''));
+      '<span class="bf" style="width:' + (Math.abs(r.gap) / gmax * 100).toFixed(0) + '%"></span></span>' +
+      '<span class="bv">' + (r.gap >= 0 ? '+' : '') + r.gap + '%p</span></div>').join('') +
+      '<p class="muted">획득한 판과 내준 판의 승률 차이입니다. 인과가 아니라 동반 관계입니다.</p>');
   }
   h += '<h2 id="live">최근 경기</h2><div class="box">' +
     '<p class="note">아래 통계는 하루 한 번 갱신됩니다. 방금 한 게임은 이 버튼으로 바로 확인하세요.</p>' +
@@ -599,15 +621,16 @@ function renderPlayer(id) {
   }
   // 데스 부검
   if ((F.autopsy || []).length) {
-    const cols = {'한타 중 사망':'#6b8cc4','교전 중 사망':'#4a9d6f','소규모 갱':'#c8a24a',
-                  '솔로 패배':'#c05a5a','짤림':'#9b59b6','처형':'#7d879c'};
+    // 라벨은 analytics/fun_stats.py 가 정하므로 키가 어긋나면 전부 회색이 된다.
+    const cols = {'한타에서 죽음':'#6b8cc4','소규모 교전':'#4a9d6f','갱 당함':'#c8a24a',
+                  '솔킬 당함':'#c05a5a','짤림':'#9b59b6','처형(미니언·포탑)':'#7d879c'};
     const st = F.autopsy.map(r => '<div style="width:' + r.pct + '%;background:' +
       (cols[r.label] || '#888') + '">' + (r.pct >= 9 ? r.pct + '%' : '') + '</div>').join('');
     const lg = F.autopsy.map(r => '<span><i style="background:' + (cols[r.label] || '#888') +
       '"></i>' + esc(r.label) + ' ' + r.pct + '%</span>').join('');
     h += box('왜 죽었나', '<div class="stack">' + st + '</div>' +
       '<div class="legend">' + lg + '</div>' +
-      '<p class="muted">짤림 = 여러 명에게 아군 없이 잡힘 · 솔로 패배 = 1:1에서 짐. 3분 이후만 집계.</p>');
+      '<p class="muted">짤림 = 여러 명에게 아군 없이 잡힘 · 솔킬 당함 = 1:1에서 짐. 3분 이후만 집계.</p>');
   }
   // 습관 (연승 / 회색화면 / 시계)
   h += '<h2 id="habit">습관과 리듬</h2><div class="grid2">';
@@ -742,10 +765,10 @@ function renderPlayer(id) {
           const ago = Math.max(0, Math.round((Date.now() - when.getTime()) / 3600000));
           return '<div class="lgame"><div class="lt">' +
             '<span class="' + (g.win ? 'tagw' : 'tagl') + '">' + (g.win ? '승리' : '패배') + '</span>' +
-            '<b>' + esc(CH[g.champion] || g.champion) + '</b>' +
+            '<b>' + esc(kch(g.champion)) + '</b>' +
             '<span class="muted">' + esc(POS[g.position] || g.position || '') +
-            (g.opponent ? ' · vs ' + esc(CH[g.opponent] || g.opponent) : '') +
-            (g.enemyJungler ? ' · 적정글 ' + esc(CH[g.enemyJungler] || g.enemyJungler) : '') +
+            (g.opponent ? ' · vs ' + esc(kch(g.opponent)) : '') +
+            (g.enemyJungler ? ' · 적정글 ' + esc(kch(g.enemyJungler)) : '') +
             '</span><span class="muted">' + (ago < 24 ? ago + '시간 전' : when.toLocaleDateString('ko-KR')) +
             ' · ' + g.durationMin + '분</span></div>' +
             '<div class="lstats"><span>KDA <b>' + esc(g.kda) + '</b></span>' +
