@@ -78,6 +78,7 @@ background:var(--line);border:1px solid var(--line);border-radius:9px;overflow:h
 .bt{flex:1;height:13px;background:var(--gl);border-radius:3px;overflow:hidden}
 .bf{height:100%;border-radius:3px;background:var(--good)}
 .bf.lo{background:var(--bad)}
+.bf.neu{background:var(--muted);opacity:.55}
 .bv{width:74px;flex:none;text-align:right;font-family:'IBM Plex Mono',monospace;
 font-size:11.5px;font-variant-numeric:tabular-nums}
 .bv i{color:var(--muted);font-style:normal;font-size:10.5px}
@@ -114,6 +115,14 @@ font:inherit;font-weight:600;font-size:13px;cursor:pointer}
 .rec .rl{font-size:11px;color:var(--muted)}
 .rec .rv{font-family:'Chakra Petch',sans-serif;font-size:22px;font-variant-numeric:tabular-nums}
 .rec .rm{font-size:11px;color:var(--ink2)}
+.rec.hero{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.rec.hero .rv{color:var(--accent)}
+.ld{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:6px 0 2px}
+.ldc{background:var(--surf);border:1px solid var(--line);border-radius:9px;padding:10px 12px;text-align:center}
+.ldc .v{font-family:'Chakra Petch',sans-serif;font-size:24px;font-variant-numeric:tabular-nums}
+.ldc .k{font-size:11px;color:var(--muted)}
+.two{display:flex;gap:22px;flex-wrap:wrap}
+.two .v{font-family:'Chakra Petch',sans-serif;font-size:30px;font-variant-numeric:tabular-nums}
 .streak{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
 .sbig{font-family:'Chakra Petch',sans-serif;font-size:30px;line-height:1}
 .grass{display:flex;gap:2px;flex-wrap:wrap;margin-top:8px}
@@ -206,15 +215,42 @@ rosterEl.addEventListener('click', e => {
   if (b) location.hash = '#/p/' + b.dataset.id;
 });
 
-function bars(rows, unit) {
-  if (!rows || !rows.length) return '<p class="muted">표본이 부족합니다.</p>';
-  const mx = Math.max(...rows.map(r => r.wr != null ? r.wr : 0), 1);
+function wilson(w, n) {
+  if (!n) return [0, 1];
+  const z = 1.96, p = w / n, d = 1 + z * z / n;
+  const c = (p + z * z / (2 * n)) / d;
+  const m = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d;
+  return [Math.max(0, c - m), Math.min(1, c + m)];
+}
+// mode: 'rate'(승률, 50% 기준 편차)  'volume'(판수 길이)  'plain'(단순 값)
+function bars(rows, opt) {
+  opt = opt || {};
+  const mode = opt.mode || 'rate';
+  if (!rows || !rows.length) return '<p class="muted">아직 판수가 모자라요.</p>';
+  const unit = opt.unit != null ? opt.unit : '%';
+  const maxN = Math.max(...rows.map(r => r.n || 0), 1);
+  const maxV = Math.max(...rows.map(r => r.wr == null ? 0 : r.wr), 1);
   return rows.map(r => {
-    const v = r.wr == null ? 0 : r.wr;
-    return '<div class="bar"><span class="bl">' + esc(r.l) + '</span>' +
-      '<span class="bt"><span class="bf' + (v < 50 ? ' lo' : '') + '" style="width:' +
-      (v / mx * 100).toFixed(1) + '%"></span></span>' +
-      '<span class="bv">' + v + (unit || '%') + ' <i>' + (r.n || 0) + '판</i></span></div>';
+    const v = r.wr == null ? 0 : r.wr, n = r.n || 0;
+    let width, cls = '', mark = '';
+    if (mode === 'volume') {
+      width = n / maxN * 100; cls = 'neu';
+    } else if (mode === 'plain') {
+      width = Math.min(100, v / (opt.max || maxV) * 100); cls = 'neu';
+    } else {
+      // 승률: 50%에서 얼마나 벗어났나(±25%p 만점). 신뢰구간이 50%를 걸치면 회색.
+      width = Math.min(100, Math.abs(v - 50) / 25 * 100);
+      const ci = wilson(Math.round(v / 100 * n), n);
+      const sure = n >= 6 && (ci[0] > 0.5 || ci[1] < 0.5);
+      cls = !sure ? 'neu' : (v >= 50 ? '' : 'lo');
+      if (sure) mark = v >= 50 ? ' ▲' : ' ▼';
+    }
+    const val = (mode === 'rate' && n > 0 && n < 6) ? '—'
+              : (v.toFixed ? v.toFixed(1).replace(/\.0$/, '') : v) + unit;
+    return '<div class="bar"><span class="bl" title="' + esc(r.l) + '">' + esc(r.l) + '</span>' +
+      '<span class="bt"><span class="bf ' + cls + '" style="width:' + width.toFixed(1) + '%"></span></span>' +
+      '<span class="bv">' + val + mark +
+      (r.n != null && r.n > 0 ? ' <i>' + r.n + '판</i>' : '') + '</span></div>';
   }).join('');
 }
 function box(title, inner) { return '<div class="box"><h3>' + esc(title) + '</h3>' + inner + '</div>'; }
@@ -238,30 +274,59 @@ function renderPlayer(id) {
       '<div class="kpi"><div class="kl">' + k[0] + '</div><div class="kv">' + k[1] + '</div></div>'
     ).join('') + '</div>' +
     '<h2 id="ch">챔피언</h2><div class="grid2">' +
-      box('많이 한 챔피언', bars(p.champs)) +
-      box('라인 분포', bars(p.roles.map(r => ({l: r.r, n: r.n, wr: r.wr})))) + '</div>' +
-    '<h2 id="lane">맞라인 상대</h2><div class="grid2">' +
+      box('많이 한 챔피언', bars(p.champs, {mode: 'volume'})) +
+      box('라인 분포', bars(p.roles.map(r => ({l: r.r, n: r.n, wr: r.wr})), {mode: 'volume'})) + '</div>' +
+    (function () {
+      const L = (p.ld || {}).m15 || (p.ld || {}).m10;
+      if (!L) return '<h2 id="lane">맞라인 상대</h2>';
+      const c = v => v > 0 ? 'var(--good)' : (v < 0 ? 'var(--bad)' : 'var(--ink)');
+      const sg = v => (v > 0 ? '+' : '') + v;
+      const mn = (p.ld || {}).m15 ? 15 : 10;
+      return '<h2 id="lane">맞라인 상대</h2>' +
+        '<div class="box"><h3>' + mn + '분 라인전 격차</h3>' +
+        '<p class="note">같은 경기 맞라이너와의 차이입니다. 티어·메타가 자동으로 통제되는 가장 공정한 지표입니다.</p>' +
+        '<div class="ld">' +
+        '<div class="ldc"><div class="v" style="color:' + c(L.cs) + '">' + sg(L.cs) + '</div>' +
+          '<div class="k">CS 차이</div></div>' +
+        '<div class="ldc"><div class="v" style="color:' + c(L.gold) + '">' + sg(L.gold) + '</div>' +
+          '<div class="k">골드 차이</div></div>' +
+        '<div class="ldc"><div class="v" style="color:' + c(L.xp) + '">' + sg(L.xp) + '</div>' +
+          '<div class="k">경험치 차이</div></div></div>' +
+        '<p class="muted">' + L.n + '판 평균</p></div>';
+    })() +
+    '<div class="grid2">' +
       box('상대하기 편한 / 어려운 챔피언', bars(p.lane)) +
       box('적 정글별 승률', bars(p.ejg)) + '</div>' +
     '<h2 id="team">아군 · 적</h2><div class="grid2">' +
       box('같이 하면 이기는 / 지는 챔피언', bars(p.ally)) +
       box('적으로 만났을 때', bars(p.enemy)) +
       box('아군 정글별 승률', bars(p.ajg)) + '</div>' +
-    '<h2 id="obj">오브젝트</h2><div class="grid2">' +
+    '<h2 id="obj">오브젝트</h2>' +
+    (function () {
+      const cb = p.cb || {};
+      if (cb.throw_rate == null && cb.comeback_rate == null) return '';
+      return '<div class="box"><div class="two">' +
+        (cb.throw_rate != null ? '<div><div class="v" style="color:var(--bad)">' + cb.throw_rate +
+          '%</div><div class="muted">던진 판 — 15분에 앞서고도 짐</div></div>' : '') +
+        (cb.comeback_rate != null ? '<div><div class="v" style="color:var(--good)">' +
+          cb.comeback_rate + '%</div><div class="muted">뒤집은 판 — 15분에 밀리다 이김</div></div>' : '') +
+        '</div></div>';
+    })() +
+    '<div class="grid2">' +
       box('용을 몇 마리 먹었나', bars((o.dragon_count || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
       box('첫 용을 언제 먹었나', bars((o.first_dragon_time || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
       box('어떤 용을 먹었나', bars((o.first_dragon_element || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
       box('오브젝트 선취', bars((o.firsts || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
       box('공허 유충', bars((o.horde_bin || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
-      box('15분 상황별 결과', bars(((p.cb || {}).by_lead15 || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
+      box('15분 상황별', bars(((p.cb || {}).by_lead15 || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
       '</div>';
   if ((o.impact || []).length) {
-    h += box('오브젝트 영향력 (획득 시 − 내줄 시)', (o.impact || []).map(r =>
+    h += box('뺏기면 지는 순서', (o.impact || []).map(r =>
       '<div class="bar"><span class="bl">' + esc(r.label) + '</span><span class="bt">' +
       '<span class="bf" style="width:' + Math.min(100, r.gap * 1.6).toFixed(0) + '%"></span></span>' +
       '<span class="bv">+' + r.gap + '%p</span></div>').join(''));
   }
-  h += '<h2 id="live">최근 경기 즉시 조회</h2><div class="box">' +
+  h += '<h2 id="live">최근 경기</h2><div class="box">' +
     '<p class="note">아래 통계는 하루 한 번 갱신됩니다. 방금 한 게임은 이 버튼으로 바로 확인하세요.</p>' +
     '<button class="livebtn" id="liveBtn">최근 경기 불러오기</button>' +
     '<div id="liveOut"></div></div>';
@@ -270,7 +335,7 @@ function renderPlayer(id) {
   // 명예의 전당 (챔피언 섹션 앞으로 이동시키기 위해 별도 삽입)
   if ((F.hof || []).length) {
     const hof = F.hof.map(r =>
-      '<div class="rec"><div class="rl">' + esc(r.label) + '</div>' +
+      '<div class="rec' + (r.hero ? ' hero' : '') + '"><div class="rl">' + esc(r.label) + '</div>' +
       '<div class="rv">' + r.value.toLocaleString() + '<span style="font-size:12px">' +
       esc(r.unit || '') + '</span></div>' +
       '<div class="rm">' + esc(r.champ) + ' · ' + esc(r.when) +
@@ -313,7 +378,7 @@ function renderPlayer(id) {
       (cols[r.label] || '#888') + '">' + (r.pct >= 9 ? r.pct + '%' : '') + '</div>').join('');
     const lg = F.autopsy.map(r => '<span><i style="background:' + (cols[r.label] || '#888') +
       '"></i>' + esc(r.label) + ' ' + r.pct + '%</span>').join('');
-    h += box('데스 부검 — 어쩌다 죽었나', '<div class="stack">' + st + '</div>' +
+    h += box('왜 죽었나', '<div class="stack">' + st + '</div>' +
       '<div class="legend">' + lg + '</div>' +
       '<p class="muted">짤림 = 여러 명에게 아군 없이 잡힘 · 솔로 패배 = 1:1에서 짐. 3분 이후만 집계.</p>');
   }
@@ -335,10 +400,10 @@ function renderPlayer(id) {
   }
   const DS = F.dead || {};
   if (DS.pct != null) {
-    h += box('회색 화면 지분', '<div class="sbig">' + DS.pct + '%</div>' +
-      '<p class="muted">2~20분 동안 죽어 있던 시간 비율입니다.</p>' +
+    h += box('죽어 있던 시간', '<div class="sbig">' + DS.pct + '%</div>' +
+      '<p class="muted">2~20분 동안 죽어 있던 시간 비율입니다. 낮을수록 좋습니다.</p>' +
       bars((DS.curve || []).filter(c => c.m % 4 === 0).map(c =>
-        ({l: c.m + '분', n: 0, wr: c.v}))));
+        ({l: c.m + '분', wr: c.v})), {mode: 'plain', max: 30}));
   }
   if ((F.clock || []).length) {
     h += box('언제 이기나 (한국 시간)', bars(F.clock.map(r =>
@@ -363,7 +428,7 @@ function renderPlayer(id) {
       '</div><div id="qout"></div></div>';
   }
 
-  h += '<h2 id="fb">실력 향상 피드백</h2>';
+  h += '<h2 id="fb">고칠 점</h2>';
   h += (p.fb && p.fb.length)
     ? p.fb.map(t => '<div class="fb">' + t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>') + '</div>').join('')
     : '<p class="muted">표본이 더 쌓이면 제공됩니다.</p>';
