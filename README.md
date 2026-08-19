@@ -5,7 +5,8 @@
 친구 그룹의 League of Legends **솔로랭크** 전적을 Riot Match-V5 / Timeline-V5 데이터로
 분석해 보여주는 정적 사이트입니다.
 
-**사이트**: https://molaaaaaaa.github.io/lol-analytics/
+**사이트**: https://lol-disassembly-analyzer.pages.dev/
+(예비: https://molaaaaaaa.github.io/lol-analytics/)
 
 ## 무엇을 보여주나
 

@@ -1,0 +1,8 @@
+# Cloudflare Pages 캐시 제어
+# index.html 은 항상 최신을 받도록, 이미지는 짧게 캐시
+/
+  Cache-Control: public, max-age=0, must-revalidate
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+/og.png
+  Cache-Control: public, max-age=600
