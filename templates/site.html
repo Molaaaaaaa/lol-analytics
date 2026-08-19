@@ -76,9 +76,10 @@ background:var(--line);border:1px solid var(--line);border-radius:9px;overflow:h
 .bar{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:12.5px}
 .bl{width:104px;flex:none;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bt{flex:1;height:13px;background:var(--gl);border-radius:3px;overflow:hidden}
-.bf{height:100%;border-radius:3px;background:var(--good)}
+.bf{display:block;height:100%;border-radius:3px;background:var(--good)}  /* display 필수: span은 인라인이라 width가 무시돼 막대가 안 그려진다 */
 .bf.lo{background:var(--bad)}
 .bf.neu{background:var(--muted);opacity:.55}
+.bf.un{opacity:.38}  /* 표본이 적어 확신 없음 — 방향(색)은 유지하고 옅게만 */
 .bv{width:74px;flex:none;text-align:right;font-family:'IBM Plex Mono',monospace;
 font-size:11.5px;font-variant-numeric:tabular-nums}
 .bv i{color:var(--muted);font-style:normal;font-size:10.5px}
@@ -392,11 +393,16 @@ function bars(rows, opt) {
     } else if (mode === 'plain') {
       width = Math.min(100, v / (opt.max || maxV) * 100); cls = 'neu';
     } else {
-      // 승률: 50%에서 얼마나 벗어났나(±25%p 만점). 신뢰구간이 50%를 걸치면 회색.
-      width = Math.min(100, Math.abs(v - 50) / 25 * 100);
+      // 승률: 50%에서 얼마나 벗어났나(±25%p 만점).
+      // 방향(위/아래)은 색으로, 확신은 진하기로 표현한다.
+      const enough = n >= 6;
+      // 표본이 모자라면 숫자를 '—'로 감추므로 막대도 그리지 않는다
+      // (안 그러면 "데이터 부족"인데 막대만 꽉 찬 모순이 생긴다).
+      width = enough ? Math.min(100, Math.abs(v - 50) / 25 * 100) : 0;
       const ci = wilson(Math.round(v / 100 * n), n);
-      const sure = n >= 6 && (ci[0] > 0.5 || ci[1] < 0.5);
-      cls = !sure ? 'neu' : (v >= 50 ? '' : 'lo');
+      const sure = enough && (ci[0] > 0.5 || ci[1] < 0.5);
+      // 회색(neu)으로 뭉개면 70%와 30%가 같은 길이·같은 색이 되어 구분이 안 된다 → 색은 유지, 옅게.
+      cls = (v >= 50 ? '' : 'lo') + (sure ? '' : ' un');
       if (sure) mark = v >= 50 ? ' ▲' : ' ▼';
     }
     const val = (mode === 'rate' && n > 0 && n < 6) ? '—'
