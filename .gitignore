@@ -1,0 +1,8 @@
+# 절대 커밋 금지 — API 키·전적 원본 데이터
+.env
+*.env
+data/
+riot_cache/
+*.parquet
+*.duckdb
+__pycache__/
