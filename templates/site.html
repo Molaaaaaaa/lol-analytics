@@ -62,6 +62,26 @@ overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .f{width:100%;height:5px;border-radius:2px;background:var(--bad)}
 .f.w{background:var(--good)}
 .hidden{display:none!important}
+.fbsec{border-top:1px solid var(--line);margin:38px 0 0;padding:22px 0 6px}
+.fbsec h2{margin:0 0 4px;font-size:17px}
+.fbsec>p.lead{margin:0 0 14px;font-size:13px;color:var(--ink2);line-height:1.66;max-width:62ch}
+.fbrow{display:flex;gap:9px;flex-wrap:wrap;margin:0 0 9px}
+.fbrow label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted);flex:1;min-width:150px}
+.fbsec select,.fbsec input,.fbsec textarea{padding:8px 10px;border-radius:8px;border:1px solid var(--line);
+background:var(--bg);color:var(--ink);font-family:inherit;font-size:13px;width:100%;box-sizing:border-box}
+.fbsec textarea{min-height:104px;resize:vertical;line-height:1.6}
+.fbsec select:focus,.fbsec input:focus,.fbsec textarea:focus{outline:none;border-color:var(--accent)}
+.fbfoot{display:flex;gap:11px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.fbsend{background:var(--accent);color:var(--bg);border:none;border-radius:8px;padding:9px 20px;
+font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.fbsend:hover:not(:disabled){filter:brightness(1.12)}
+.fbsend:disabled{opacity:.5;cursor:default}
+.fbalt{font-size:12px;color:var(--muted)}
+.fbalt a{color:var(--ink2)}
+.fbmsg{font-size:12.5px;margin:9px 0 0;min-height:1.2em}
+.fbmsg.ok{color:var(--good)}
+.fbmsg.err{color:var(--bad)}
+.fbcount{font-size:11px;color:var(--muted);margin-left:auto}
 .notes{margin:26px 0 0;border-top:1px solid var(--line);padding-top:16px}
 .notes>summary{cursor:pointer;font-size:13px;color:var(--ink2);list-style:none;
 display:flex;align-items:center;gap:7px;user-select:none}
@@ -84,6 +104,19 @@ margin:0 0 5px;font-weight:600;letter-spacing:.02em}
 .spark .sb{flex:1;min-height:2px;background:var(--bad);opacity:.78;border-radius:2px 2px 0 0}
 .spark .sb:hover{opacity:1}
 .spx{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:2px}
+.adj{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
+.adj th{text-align:right;font-weight:600;color:var(--muted);font-size:11px;
+padding:5px 7px;border-bottom:1px solid var(--line);white-space:nowrap}
+.adj th:first-child{text-align:left}
+.adj td{padding:6px 7px;border-bottom:1px solid var(--line);text-align:right;
+font-variant-numeric:tabular-nums}
+.adj td:first-child{text-align:left;color:var(--ink)}
+.adj tr:last-child td{border-bottom:none}
+.adj .mv{font-weight:600}
+.adj .up{color:var(--good)}
+.adj .dn{color:var(--bad)}
+.adj .fl{color:var(--muted);font-weight:400}
+.adj .why{font-size:11px;color:var(--muted);text-align:left;padding-top:0;padding-bottom:8px}
 .rctl{display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap;margin:0 0 10px}
 .rctl label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted)}
 .rctl select{padding:6px 9px;border-radius:7px;border:1px solid var(--line);background:var(--bg);
@@ -247,6 +280,30 @@ footer{border-top:1px solid var(--line);padding:16px 18px 40px;color:var(--muted
       <details class="notes" id="notes"></details>
     <p class="muted" id="empty" style="display:none">검색 결과가 없습니다.</p></div></div>
   <div id="playerView" class="hidden"></div>
+  <section class="fbsec" id="fbsec">
+    <h2>피드백</h2>
+    <p class="lead">이 사이트는 여러분 전적을 뜯어보고 있습니다. 숫자가 이상하거나,
+      이런 걸 보고 싶다거나, 그냥 할 말이 있으면 여기 남겨주세요. 준호한테 바로 갑니다.</p>
+    <div class="fbrow">
+      <label>누구<select id="fbWho"></select></label>
+      <label>무슨 얘기<select id="fbKind">
+        <option>숫자가 이상함</option>
+        <option>버그</option>
+        <option>이런 걸 보고 싶다</option>
+        <option>기타</option>
+      </select></label>
+    </div>
+    <label style="font-size:11px;color:var(--muted)">내용
+      <textarea id="fbBody" maxlength="2000"
+        placeholder="예) 내 던진 판 비율이 말이 안 됩니다. 15분에 앞선 게 6판밖에 없는데 그걸로 순위를 매기면..."></textarea>
+    </label>
+    <div class="fbfoot">
+      <button class="fbsend" id="fbSend" type="button">보내기</button>
+      <span class="fbalt" id="fbAlt"></span>
+      <span class="fbcount" id="fbCount">0 / 2000</span>
+    </div>
+    <p class="fbmsg" id="fbMsg"></p>
+  </section>
 </main>
 <footer class="wrap"><span id="foot"></span> · Riot Match-V5 / Timeline-V5 기반 ·
 보정 없이 원자료 승률이며 표본이 적은 항목은 참고용입니다.</footer>
@@ -291,6 +348,11 @@ const CH = D.champ_ko || {};
 // Riot 은 'FiddleSticks', Data Dragon 은 'Fiddlesticks' — 대소문자가 다르다
 const CHL = Object.fromEntries(Object.entries(CH).map(([k, v]) => [k.toLowerCase(), v]));
 const kch = c => CH[c] || CHL[String(c || '').toLowerCase()] || c;
+// 한글 받침 유무 -> 조사 선택. '정글라도'/'미드이라도' 같은 게 안 나오게.
+const batchim = w => { const s = String(w || ''); if (!s) return false;
+  const c = s.charCodeAt(s.length - 1) - 0xAC00;
+  return c >= 0 && c <= 11171 && (c % 28) !== 0; };
+const josa = (w, withB, noB) => String(w || '') + (batchim(w) ? withB : noB);
 const POS = {TOP: '탑', JUNGLE: '정글', MIDDLE: '미드', BOTTOM: '원딜', UTILITY: '서포터'};
 D.players.sort((a, b) => col.compare(a.name, b.name));
 document.getElementById('sub').textContent =
@@ -327,6 +389,93 @@ function cardHTML(p) {
       p.wr + '%</span></div>' +
     '<div class="csub">' + esc(p.role) + ' · ' + p.n + '판</div></button>';
 }
+// ---------- 피드백 창구 ----------
+(function () {
+  var REPO = "https://github.com/molaaaaaaa/lol-analytics";
+  var who = document.getElementById("fbWho");
+  var kind = document.getElementById("fbKind");
+  var body = document.getElementById("fbBody");
+  var send = document.getElementById("fbSend");
+  var msg = document.getElementById("fbMsg");
+  var alt = document.getElementById("fbAlt");
+  var cnt = document.getElementById("fbCount");
+  if (!who || !send) return;
+
+  // 이름 목록 — 로스터에서 고르거나 그냥 두면 익명
+  var opts = ['<option value="">익명으로</option>'];
+  (D.players || []).forEach(function (p) {
+    opts.push('<option value="' + esc(p.name) + '">' + esc(p.name) + "</option>");
+  });
+  who.innerHTML = opts.join("");
+  try {
+    var last = localStorage.getItem("fbWho");
+    if (last) who.value = last;
+  } catch (e) {}
+  who.onchange = function () {
+    try { localStorage.setItem("fbWho", who.value); } catch (e) {}
+  };
+
+  body.oninput = function () {
+    cnt.textContent = body.value.length + " / 2000";
+  };
+
+  // 지금 보고 있는 화면 — 어느 사람 페이지에서 남겼는지 같이 보낸다
+  function where() {
+    var m = (location.hash || "").match(/#\/p\/([a-f0-9]+)/);
+    if (!m) return "목록";
+    var p = (D.players || []).filter(function (x) { return x.id === m[1]; })[0];
+    return p ? p.name + " 페이지" : "개인 페이지";
+  }
+
+  function issueURL() {
+    var t = "[" + kind.value + "] " + (body.value.split("\n")[0] || "").slice(0, 60);
+    var b = body.value + "\n\n---\n화면: " + where() + "\n남긴이: " + (who.value || "익명");
+    return REPO + "/issues/new?title=" + encodeURIComponent(t) + "&body=" + encodeURIComponent(b);
+  }
+  function showAlt(label) {
+    alt.innerHTML = label + ' <a href="' + issueURL() + '" target="_blank" rel="noopener">GitHub Issues에 남기기</a>';
+  }
+  showAlt("또는");
+
+  send.onclick = function () {
+    var t = body.value.trim();
+    if (t.length < 5) {
+      msg.className = "fbmsg err";
+      msg.textContent = "내용을 다섯 글자 이상 적어주세요.";
+      return;
+    }
+    send.disabled = true;
+    msg.className = "fbmsg";
+    msg.textContent = "보내는 중...";
+    fetch("/api/feedback", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ who: who.value, kind: kind.value, body: t, page: where() }),
+    })
+      .then(function (r) { return r.json().then(function (j) { return { s: r.status, j: j }; }); })
+      .then(function (r) {
+        if (r.j && r.j.ok) {
+          msg.className = "fbmsg ok";
+          msg.textContent = "고맙습니다. 잘 받았습니다.";
+          body.value = "";
+          cnt.textContent = "0 / 2000";
+          send.disabled = false;
+          return;
+        }
+        msg.className = "fbmsg err";
+        msg.textContent = (r.j && r.j.error) || "전송에 실패했습니다.";
+        send.disabled = false;
+        if (r.j && r.j.fallback === "github") showAlt("대신");
+      })
+      .catch(function () {
+        msg.className = "fbmsg err";
+        msg.textContent = "전송에 실패했습니다. 아래 링크로 남겨주세요.";
+        send.disabled = false;
+        showAlt("대신");
+      });
+  };
+})();
+
 // ---------- 패치 노트 (원본: 저장소의 PATCHNOTES.md) ----------
 (function () {
   const el = document.getElementById('notes');
@@ -800,6 +949,50 @@ function renderPlayer(id) {
   h += (p.fb && p.fb.length)
     ? p.fb.map(t => '<div class="fb">' + t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>') + '</div>').join('')
     : '<p class="muted">표본이 더 쌓이면 제공됩니다.</p>';
+
+  // ---- 챔피언 보정 표 ----
+  const Z = (p.zs || []).filter(z => z.pct_raw != null);
+  if (Z.length) {
+    const band = q => q >= 50 ? '상위 ' + Math.max(1, Math.round(100 - q)) + '%'
+                              : '하위 ' + Math.max(1, Math.round(q)) + '%';
+    const rows = [...Z].sort((a, b) => a.pct - b.pct).map(z => {
+      const mv = z.pct - z.pct_raw;
+      const cls = Math.abs(mv) < 4 ? 'fl' : (mv > 0 ? 'up' : 'dn');
+      const am = Math.round(Math.abs(mv));
+      const arrow = am === 0 ? '' : (mv > 0 ? '▲' : '▼') + am;
+      const drv = (z.drivers || []).filter(x => x.share != null && x.n >= 5 &&
+                    Math.abs(x.share) >= .2 && (x.share < 0) === !!z.higher_better)
+                  .sort((a, b) => Math.abs(b.share) - Math.abs(a.share)).slice(0, 2);
+      let r = '<tr><td>' + esc(z.ko) + '</td><td>' + z.me + '</td><td class="fl">' + z.exp +
+        '</td><td class="fl">' + band(z.pct_raw) + '</td><td class="mv ' + cls + '">' +
+        band(z.pct) + ' <span style="font-size:11px">' + arrow + '</span></td></tr>';
+      if (drv.length && Math.abs(mv) >= 4) {
+        r += '<tr><td class="why" colspan="5">↳ ' +
+          drv.map(x => esc(x.champ) + ' ' + x.n + '판').join(' · ') +
+          ' 때문에 기대치가 ' + (mv > 0 ? '낮' : '높') + '게 잡힙니다</td></tr>';
+      }
+      return r;
+    }).join('');
+    h += '<div class="box" style="margin-top:14px">' +
+      '<h3 style="margin:0 0 4px;font-size:13px">챔피언을 감안하면</h3>' +
+      '<p class="muted" style="margin:0 0 8px">같은 ' + esc(josa(p.role, '이라도', '라도')) +
+      ' 고르는 챔피언마다 기대 딜량·CS·시야가 ' +
+      '애초에 다릅니다. 그래서 <b>내가 고른 챔피언들의 평균</b>을 기대치로 잡고, 거기서 얼마나 ' +
+      '벗어났는지로 다시 줄을 세웠습니다. 기대치는 <b>본인 판을 통째로 뺀</b> 값이라 자기 성적이 ' +
+      '자기 기준이 되는 일은 없습니다.</p>' +
+      '<div style="overflow-x:auto"><table class="adj"><tr><th>지표</th><th>내 값</th>' +
+      '<th>챔프 기대치</th><th>안 따지면</th><th>감안하면</th></tr>' + rows + '</table></div>' +
+      '<p class="muted">' + ((p.zs[0] || {}).pop_kind === 'own'
+        ? '비교 대상은 <b>' + esc(p.name) + '님이 실제로 뛴 경기에 나온 같은 라인 선수 ' +
+          ((p.zs[0] || {}).pop || 0).toLocaleString() + '명</b>입니다(본인 제외). ' +
+          '매칭 시스템이 실력을 맞춰 넣어준 사람들이라 "같은 라인 N명 중 몇 등"이 그대로 성립합니다. ' +
+          '대부분 1판씩만 나오므로 평균만 이 집단에서 쓰고, 흩어진 정도는 라인 전체 표본에서 가져왔습니다 ' +
+          '— 작은 집단에서 산포를 직접 재면 0으로 무너져 사소한 차이가 "하위 1%"로 튑니다.'
+        : '비교 대상은 이 데이터에 등장한 같은 라인 전원' +
+          ((p.zs[0] || {}).pop ? ' ' + p.zs[0].pop.toLocaleString() + '명' : '') +
+          '입니다(본인 제외). 1~2판만 나온 사람이 대부분이라 그 표본 잡음은 분산분해로 걷어냈습니다.') +
+      '</p></div>';
+  }
 
   const v = document.getElementById('playerView');
   v.innerHTML = h;
