@@ -117,6 +117,7 @@ font-variant-numeric:tabular-nums}
 .adj .dn{color:var(--bad)}
 .adj .fl{color:var(--muted);font-weight:400}
 .adj .why{font-size:11px;color:var(--muted);text-align:left;padding-top:0;padding-bottom:8px}
+.adj .sub{display:block;color:var(--muted);font-weight:400;font-size:10.5px;line-height:1.3}
 .rctl{display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap;margin:0 0 10px}
 .rctl label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted)}
 .rctl select{padding:6px 9px;border-radius:7px;border:1px solid var(--line);background:var(--bg);
@@ -593,9 +594,9 @@ const METRICS = [
        '<span class="sub">'+t.win+'연승 · 기대 '+t.expected+'</span>';}},
   {k:'fb', l:'판당 퍼스트블러드', u:'%', hi:true,
    f:p=>{const v=hofV(p,'퍼스트블러드'); return v==null? null : v/p.n*100;}},
-  {k:'sdpg', l:'판당 피솔킬(낮을수록 좋음)', f:p=>(p.sd||{}).per_game, u:'', hi:false, dp:2},
-  {k:'skpg', l:'판당 솔킬', f:p=>(p.sd||{}).given_per_game, u:'', hi:true, dp:2},
-  {k:'snet', l:'솔킬 수지 (준 − 당한)', f:p=>(p.sd||{}).net_per_game, u:'', hi:true, dp:2},
+  {k:'sdpg', l:'판당 피솔킬(낮을수록 좋음)', f:p=>(p.sd||{}).per_game, u:'', hi:false, dp:2, rf:r=>r.sdpg},
+  {k:'skpg', l:'판당 솔킬', f:p=>(p.sd||{}).given_per_game, u:'', hi:true, dp:2, rf:r=>r.skpg},
+  {k:'snet', l:'솔킬 수지 (준 − 당한)', f:p=>(p.sd||{}).net_per_game, u:'', hi:true, dp:2, rf:r=>r.snet},
 ];
 // 펜타킬은 19명 중 18명이 0회라 순위가 성립하지 않아 뺐다(개인 명예의 전당에는 남아 있다).
 const ROLE_SENSITIVE = new Set(['cspm','dpm','vs','ldg','ldc','kp','kda','fb','dead',
@@ -642,26 +643,56 @@ function renderRank(){
   const pool = onlyRole ? D.players.filter(p=>p.role===want).length : total;
   const dropped = pool - rows.length;
 
+  let homogeneous = false;
   if (m.ci) {
-    // 비율 지표는 원자료로 줄세우면 표본 잡음이 그대로 등수가 된다.
-    // 분모는 반드시 r.n (그 지표의 실제 표본). r.p.n 을 쓰면 27패를 69패로 착각한다.
-    rows.forEach(r=>{ const ci = wilson(Math.round(r.v/100*r.n), r.n);
-      r.lo = ci[0]*100; r.hi2 = ci[1]*100; });
-    rows.sort((a,b)=> m.hi ? b.lo-a.lo : a.hi2-b.hi2);   // 보수적: 표본 많은 쪽이 위로
+    // 예전에는 윌슨 하한/상한으로 정렬했는데, 그게 잘 재현되는 이유는 실력을 잘 잡아서가
+    // 아니라 정렬 키에 판수가 섞여 들어가서였다. 실력차가 0인 널 시뮬에서도
+    // 윌슨95 반분상관 +0.149, '판수만으로 정렬'은 +0.990 이 나온다(신호가 0인데도).
+    // 경험적 베이즈 축소는 널에서 -0.003 으로 정직하다.
+    const tot = rows.reduce((a,r)=>a + r.v/100*r.n, 0);
+    const den = rows.reduce((a,r)=>a + r.n, 0) || 1;
+    const pooled = tot/den;                       // 전원 합친 비율
+    const M = 50;                                 // 축소 강도(판수 단위)
+    rows.forEach(r=>{
+      const k = r.v/100*r.n;
+      r.sh = (k + pooled*M) / (r.n + M) * 100;    // 축소 추정값
+      const ci = wilson(Math.round(k), r.n);
+      r.lo = ci[0]*100; r.hi2 = ci[1]*100;
+    });
+    rows.sort((a,b)=> m.hi ? b.sh-a.sh : a.sh-b.sh);
+    // 카이제곱 동질성 — 전원이 같은 확률이라는 가설을 못 깨면 등수를 붙이지 않는다
+    let chi = 0;
+    rows.forEach(r=>{
+      const k = r.v/100*r.n, e1 = r.n*pooled, e0 = r.n*(1-pooled);
+      if (e1 > 0) chi += (k-e1)*(k-e1)/e1;
+      if (e0 > 0) chi += ((r.n-k)-e0)*((r.n-k)-e0)/e0;
+    });
+    homogeneous = chiP(chi, Math.max(1, rows.length-1)) > 0.05;
+    rows.forEach(r=>{ r.chi = chi; });
   } else {
     rows.sort((a,b)=> m.hi ? b.v-a.v : a.v-b.v);
   }
   let rk = 0, prev = null;
-  rows.forEach((r,i)=>{ const key = m.ci ? (m.hi ? r.lo : r.hi2) : r.v;
-    if (key !== prev) { rk = i+1; prev = key; } r.rk = rk; });
+  rows.forEach((r,i)=>{ const key = m.ci ? r.sh : r.v;
+    if (key !== prev) { rk = i+1; prev = key; } r.rk = homogeneous ? '·' : rk; });
 
   const out = document.getElementById('lbOut');
   if(!rows.length){ out.innerHTML='<p class="muted">해당 조건에 표시할 사람이 없습니다.</p>';
     document.getElementById('lbNote').textContent=''; return; }
   const dp = m.dp == null ? 1 : m.dp;
+  // 피솔킬 계열은 라인 격차가 2.6배라 절대값 옆에 그 라인 기준선을 붙인다.
+  const SDB = D.sd_base || {};
+  const baseNote = r => {
+    const key = {sdpg:'sd', skpg:'sk', snet:null}[m.k];
+    if (!key) return '';
+    const role = r.scoped ? want : r.p.role;
+    const b = SDB[role];
+    return b && b[key] != null
+      ? '<span class="sub">'+esc(role)+' 평균 '+b[key]+'</span>' : '';
+  };
   const fmt = r => m.fmt ? m.fmt(r.v, r.p)
     : ((typeof r.v==='number'? r.v.toFixed(dp).replace(/\.?0+$/, s2=>dp>1?s2:'') : r.v) + esc(m.u) +
-       (m.ci ? '<span class="sub">'+r.lo.toFixed(1)+' ~ '+r.hi2.toFixed(1)+'</span>' : ''));
+       (m.ci ? '<span class="sub">'+r.lo.toFixed(1)+' ~ '+r.hi2.toFixed(1)+'</span>' : baseNote(r)));
   // 라인은 별도 열로. 닉네임 옆 배지로는 포지션이 눈에 안 들어왔다.
   // 주 라인만 적으면 '미드 유저의 원딜 판'이 섞여 있다는 사실이 숨는다 -> 비중을 같이 적는다.
   const lnCell = r => {
@@ -682,10 +713,12 @@ function renderRank(){
 
   let note;
   if (m.ci) {
-    const ov = Math.max(...rows.map(r=>r.lo)) < Math.min(...rows.map(r=>r.hi2));
-    note = rows.length+'명 '+(ov?'<b>전원</b>의':'중 상당수의')+
-      ' 95% 구간이 서로 겹칩니다 — 이 순서는 실력 차이라기보다 <b>표본 잡음</b>입니다. '+
-      '표본이 많을수록 위로 오도록 윌슨 구간으로 정렬했습니다.';
+    note = homogeneous
+      ? '<b>이 지표는 '+rows.length+'명이 통계적으로 구별되지 않습니다.</b> 전원이 같은 확률이라는 '+
+        '가정을 데이터가 깨지 못해서(카이제곱 p&gt;0.05) 등수를 매기지 않았습니다. '+
+        '표시된 값은 원자료이고 옆의 범위가 95% 구간입니다 — 서로 겹치는 만큼은 우연입니다.'
+      : '판수가 적은 사람은 전체 평균 쪽으로 끌어당겨 정렬했습니다(경험적 베이즈). '+
+        '표시된 값은 원자료이고 옆이 95% 구간입니다.';
   } else if (onlyRole && m.rf) {
     note = esc(want)+' 판만 따로 집계한 값입니다(20판 이상). 전 라인 평균이 아닙니다.';
   } else if (onlyRole) {
@@ -696,6 +729,10 @@ function renderRank(){
     note = '판수가 적은 사람은 순위가 크게 흔들립니다.';
   }
   if (m.nf) note += ' 오른쪽 숫자는 총 판수가 아니라 <b>이 지표의 실제 표본</b>입니다.';
+  if (m.k==='sdpg' || m.k==='skpg' || m.k==='snet')
+    note += ' 피솔킬은 라인 격차가 2.6배입니다(탑 1.97 ↔ 서포터 0.76) — 라인 탭을 켜고 보세요. '+
+      '그리고 데스 수가 같다면 피솔킬 1회가 팀 데스 1회보다 더 나쁘지는 않습니다(실측). '+
+      '서포터는 피솔킬 중 맞라이너에게 당한 비중이 12.6%뿐이라 라인전 지표로 읽으면 안 됩니다.';
   if (!onlyRole && rows.some(r=>r.p.role_share!=null && r.p.role_share<85))
     note += ' 라인 옆 %는 주 라인 비중입니다 — 100%가 아니면 다른 라인 판이 섞인 값입니다.';
   if (dropped>0) note += ' 표본이 모자라 '+dropped+'명을 뺐습니다.';
@@ -763,6 +800,21 @@ rosterEl.addEventListener('click', e => {
   if (b) location.hash = '#/p/' + b.dataset.id;
 });
 
+// 카이제곱 상측 확률 (Wilson-Hilferty 근사). 자유도 18에서 오차 0.005 미만이라
+// '전원 통계적으로 동일한가' 를 가리는 데는 충분하다.
+function chiP(x, k) {
+  if (!(x > 0) || !(k > 0)) return 1;
+  const t = Math.pow(x/k, 1/3) - (1 - 2/(9*k));
+  const z = t / Math.sqrt(2/(9*k));
+  return 0.5 * (1 - erf(z/Math.SQRT2));
+}
+function erf(x) {
+  const s = x < 0 ? -1 : 1; x = Math.abs(x);
+  const t = 1/(1 + 0.3275911*x);
+  const y = 1 - ((((1.061405429*t - 1.453152027)*t + 1.421413741)*t
+    - 0.284496736)*t + 0.254829592)*t*Math.exp(-x*x);
+  return s*y;
+}
 function wilson(w, n) {
   if (!n) return [0, 1];
   const z = 1.96, p = w / n, d = 1 + z * z / n;
@@ -1094,8 +1146,8 @@ function renderPlayer(id) {
   // ---- 챔피언 보정 표 ----
   const Z = (p.zs || []).filter(z => z.pct_raw != null);
   if (Z.length) {
-    const band = q => q >= 50 ? '상위 ' + Math.max(1, Math.round(100 - q)) + '%'
-                              : '하위 ' + Math.max(1, Math.round(q)) + '%';
+    // 상위/하위를 섞으면 방향을 못 읽는다. '상위 N%' 하나로 통일 — 작을수록 좋다.
+    const band = q => '상위 ' + Math.max(1, Math.min(99, Math.round(100 - q))) + '%';
     const rows = [...Z].sort((a, b) => a.pct - b.pct).map(z => {
       const mv = z.pct - z.pct_raw;
       const cls = Math.abs(mv) < 4 ? 'fl' : (mv > 0 ? 'up' : 'dn');
@@ -1104,9 +1156,14 @@ function renderPlayer(id) {
       const drv = (z.drivers || []).filter(x => x.share != null && x.n >= 5 &&
                     Math.abs(x.share) >= .2 && (x.share < 0) === !!z.higher_better)
                   .sort((a, b) => Math.abs(b.share) - Math.abs(a.share)).slice(0, 2);
+      const ciTxt = (z.lo != null && z.hi != null)
+        ? (() => { const a = Math.max(1, Math.min(99, Math.round(100 - z.hi)));
+                   const b = Math.max(1, Math.min(99, Math.round(100 - z.lo)));
+                   return '<span class="sub">' + Math.min(a,b) + '~' + Math.max(a,b) + '%</span>'; })()
+        : '';
       let r = '<tr><td>' + esc(z.ko) + '</td><td>' + z.me + '</td><td class="fl">' + z.exp +
         '</td><td class="fl">' + band(z.pct_raw) + '</td><td class="mv ' + cls + '">' +
-        band(z.pct) + ' <span style="font-size:11px">' + arrow + '</span></td></tr>';
+        band(z.pct) + ' <span style="font-size:11px">' + arrow + '</span>' + ciTxt + '</td></tr>';
       if (drv.length && Math.abs(mv) >= 4) {
         r += '<tr><td class="why" colspan="5">↳ ' +
           drv.map(x => esc(x.champ) + ' ' + x.n + '판').join(' · ') +
@@ -1122,7 +1179,10 @@ function renderPlayer(id) {
       '벗어났는지로 다시 줄을 세웠습니다. 기대치는 <b>본인 판을 통째로 뺀</b> 값이라 자기 성적이 ' +
       '자기 기준이 되는 일은 없습니다.</p>' +
       '<div style="overflow-x:auto"><table class="adj"><tr><th>지표</th><th>내 값</th>' +
-      '<th>챔프 기대치</th><th>안 따지면</th><th>감안하면</th></tr>' + rows + '</table></div>' +
+      '<th>챔프 기대치</th><th>안 따지면</th><th>감안하면 <span style="font-weight:400">· 95% 구간</span>' +
+      '</th></tr>' + rows + '</table></div>' +
+      '<p class="muted">작은 글씨가 95% 구간입니다. 폭이 30%p를 넘으면 순위를 말할 수 없어 ' +
+      '고칠 점 문장에서 뺐습니다 — 표본이 그만큼 부족하다는 뜻입니다.</p>' +
       '<p class="muted">' + ((p.zs[0] || {}).pop_kind === 'own'
         ? '비교 대상은 <b>' + esc(p.name) + '님이 실제로 뛴 경기에 나온 같은 라인 선수 ' +
           ((p.zs[0] || {}).pop || 0).toLocaleString() + '명</b>입니다(본인 제외). ' +
