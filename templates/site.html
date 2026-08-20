@@ -62,6 +62,28 @@ overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .f{width:100%;height:5px;border-radius:2px;background:var(--bad)}
 .f.w{background:var(--good)}
 .hidden{display:none!important}
+.notes{margin:26px 0 0;border-top:1px solid var(--line);padding-top:16px}
+.notes>summary{cursor:pointer;font-size:13px;color:var(--ink2);list-style:none;
+display:flex;align-items:center;gap:7px;user-select:none}
+.notes>summary::-webkit-details-marker{display:none}
+.notes>summary::before{content:'▸';color:var(--muted);transition:transform .15s}
+.notes[open]>summary::before{transform:rotate(90deg)}
+.notes>summary:hover{color:var(--accent)}
+.nrel{margin:14px 0 0;padding:0 0 0 14px;border-left:2px solid var(--line)}
+.nrel h4{margin:0 0 7px;font-size:12px;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.nkind{display:inline-block;font-size:10.5px;padding:1px 7px;border-radius:20px;
+margin:0 0 5px;font-weight:600;letter-spacing:.02em}
+.nkind.add{background:rgba(74,157,111,.16);color:#4a9d6f}
+.nkind.fix{background:rgba(107,140,196,.16);color:#6b8cc4}
+.nkind.imp{background:rgba(200,162,74,.16);color:#c8a24a}
+.nkind.bad{background:rgba(192,90,90,.16);color:#c05a5a}
+.notes ul{margin:0 0 12px;padding-left:17px}
+.notes li{font-size:12.5px;line-height:1.62;color:var(--ink2);margin:0 0 4px}
+.notes li b{color:var(--ink)}
+.spark{display:flex;align-items:flex-end;gap:3px;height:78px;padding:4px 0}
+.spark .sb{flex:1;min-height:2px;background:var(--bad);opacity:.78;border-radius:2px 2px 0 0}
+.spark .sb:hover{opacity:1}
+.spx{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:2px}
 .rctl{display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap;margin:0 0 10px}
 .rctl label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted)}
 .rctl select{padding:6px 9px;border-radius:7px;border:1px solid var(--line);background:var(--bg);
@@ -222,6 +244,7 @@ footer{border-top:1px solid var(--line);padding:16px 18px 40px;color:var(--muted
         <label class="chk"><input type="checkbox" id="rGroup"> 라인별로 묶기</label>
       </div>
       <div class="roster" id="roster"></div>
+      <details class="notes" id="notes"></details>
     <p class="muted" id="empty" style="display:none">검색 결과가 없습니다.</p></div></div>
   <div id="playerView" class="hidden"></div>
 </main>
@@ -304,6 +327,22 @@ function cardHTML(p) {
       p.wr + '%</span></div>' +
     '<div class="csub">' + esc(p.role) + ' · ' + p.n + '판</div></button>';
 }
+// ---------- 패치 노트 (원본: 저장소의 PATCHNOTES.md) ----------
+(function () {
+  const el = document.getElementById('notes');
+  const N = D.notes || [];
+  if (!el || !N.length) { if (el) el.remove(); return; }
+  const cls = k => k === '추가' ? 'add' : k === '수정' ? 'fix' : k === '사고' ? 'bad' : 'imp';
+  // 굵게(**...**)만 허용. 나머지는 전부 이스케이프한다.
+  const md = t => esc(t).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+                        .replace(/`([^`]+)`/g, '<code>$1</code>');
+  el.innerHTML = '<summary>패치 노트 · 최근 갱신 ' + esc(N[0].date) + '</summary>' +
+    N.map(r => '<div class="nrel"><h4>' + esc(r.date) + '</h4>' +
+      r.groups.map(gp => '<div><span class="nkind ' + cls(gp.kind) + '">' + esc(gp.kind) +
+        '</span></div><ul>' + gp.items.map(i => '<li>' + md(i) + '</li>').join('') + '</ul>'
+      ).join('') + '</div>').join('');
+})();
+
 const ROLE_ORDER = ['탑', '정글', '미드', '원딜', '서포터', '미상'];
 function formScore(p) {
   const f = (p.form || []).slice(-10);
@@ -359,8 +398,11 @@ const METRICS = [
   {k:'streak', l:'최장 연승', f:p=>((p.fun||{}).streak||{}).win, u:'연승', hi:true},
   {k:'penta', l:'펜타킬', f:p=>{const h=((p.fun||{}).hof||[]).find(x=>x.label==='펜타킬');return h?h.value:0;}, u:'회', hi:true},
   {k:'fb', l:'퍼스트블러드', f:p=>{const h=((p.fun||{}).hof||[]).find(x=>x.label==='퍼스트블러드');return h?h.value:0;}, u:'회', hi:true},
+  {k:'sdpg', l:'판당 피솔킬(낮을수록 좋음)', f:p=>(p.sd||{}).per_game, u:'', hi:false},
+  {k:'skpg', l:'판당 솔킬', f:p=>(p.sd||{}).given_per_game, u:'', hi:true},
+  {k:'snet', l:'솔킬 수지 (준 − 당한)', f:p=>(p.sd||{}).net_per_game, u:'', hi:true},
 ];
-const ROLE_SENSITIVE = new Set(['cspm','dpm','vs','ldg','ldc','kp']);
+const ROLE_SENSITIVE = new Set(['cspm','dpm','vs','ldg','ldc','kp','sdpg','skpg','snet']);
 const mSel = document.getElementById('lbMetric');
 METRICS.forEach(m=>{const o=document.createElement('option');o.value=m.k;o.textContent=m.l;mSel.appendChild(o);});
 const roleSel = document.getElementById('lbRoleSel');
@@ -497,7 +539,8 @@ function renderPlayer(id) {
                ['시야', p.vs], ['분당딜', p.dpm]];
   const jumps = [['live', '최근 경기'], ['hof', '명예의 전당'], ['ch', '챔피언'], ['query', '조합 조회'],
                  ['lane', '맞라인'], ['team', '아군·적'], ['obj', '오브젝트'],
-                 ['map', '죽음의 지도'], ['habit', '습관'], ['games', '경기 목록'], ['fb', '고칠 점']];
+                 ['map', '죽음의 지도'], ['solo', '피솔킬'], ['habit', '습관'],
+                 ['games', '경기 목록'], ['fb', '고칠 점']];
   let h = '<button class="back" id="back">← 전체 목록</button>' +
     '<h1 style="margin:0">' + esc(p.name) + ' <span class="tag">#' + esc(p.tag) + '</span></h1>' +
     '<p class="sub">' + esc(p.role) + ' · ' + p.n + '판 · 승률 ' + p.wr + '%</p>' +
@@ -632,6 +675,67 @@ function renderPlayer(id) {
       '<div class="legend">' + lg + '</div>' +
       '<p class="muted">짤림 = 여러 명에게 아군 없이 잡힘 · 솔킬 당함 = 1:1에서 짐. 3분 이후만 집계.</p>');
   }
+  // ---- 피솔킬 ----
+  const SD = p.sd || {};
+  if (SD.n != null && SD.games) {
+    const net = SD.net_per_game;
+    const netCol = net > 0.05 ? 'var(--good)' : (net < -0.05 ? 'var(--bad)' : 'var(--ink)');
+    const kp2 = [
+      ['판당 피솔킬', SD.per_game, 'var(--bad)'],
+      ['판당 솔킬', SD.given_per_game, 'var(--good)'],
+      ['수지 (준 − 당한)', (net > 0 ? '+' : '') + net, netCol],
+      ['한 번도 안 당한 판', SD.clean_pct + '%', 'var(--ink)'],
+    ];
+    h += '<h2 id="solo">피솔킬</h2>' +
+      '<div class="kpis">' + kp2.map(k =>
+        '<div class="kpi"><div class="kl">' + k[0] + '</div>' +
+        '<div class="kv" style="color:' + k[2] + '">' + k[1] + '</div></div>').join('') + '</div>' +
+      '<p class="muted" style="margin:-4px 0 12px">' + SD.games + '판에서 ' + SD.n +
+      '회 당하고 ' + SD.given + '회 냈습니다. <b>피솔킬 = 어시스트 없이 적 챔피언 한 명에게 잡힌 죽음</b>으로, ' +
+      '라이엇이 세는 “솔로 킬”과 똑같은 자를 뒤집어 쓴 것입니다(4,000행에서 정확히 일치 확인). ' +
+      '다만 아군이 옆에 있는데 적 정글에게 혼자 잡혀도 여기 들어갑니다 — 그래서 아래에 라인전 비중과 가해자 라인을 따로 뒀습니다.</p>' +
+      '<div class="grid2">';
+
+    // 가해자 라인
+    if ((SD.by_role || []).length) {
+      const rc = {'맞라이너':'#c05a5a','정글':'#c8a24a','탑':'#6b8cc4','미드':'#4a9d6f',
+                  '원딜':'#9b59b6','서포터':'#7d879c','미상':'#888'};
+      const st2 = SD.by_role.map(r => '<div style="width:' + r.pct + '%;background:' +
+        (rc[r.l] || '#888') + '">' + (r.pct >= 9 ? r.pct + '%' : '') + '</div>').join('');
+      const lg2 = SD.by_role.map(r => '<span><i style="background:' + (rc[r.l] || '#888') +
+        '"></i>' + esc(r.l) + ' ' + r.n + '회</span>').join('');
+      h += box('누구한테 당했나', '<div class="stack">' + st2 + '</div>' +
+        '<div class="legend">' + lg2 + '</div>' +
+        '<p class="muted">맞라이너 ' + SD.vs_laner_pct + '% · 라인전(0~15분)에 ' + SD.lane_pct +
+        '%가 몰려 있습니다. 맞라이너 비중이 높으면 라인전 문제, 정글·로밍 비중이 높으면 시야와 콜 문제입니다.</p>');
+    }
+
+    // 시간 분포
+    if ((SD.by_min || []).length) {
+      const mx2 = Math.max(...SD.by_min.map(x => x.n), 1);
+      h += box('언제 당했나', '<div class="spark">' + SD.by_min.map(x =>
+        '<div class="sb" style="height:' + Math.round(x.n / mx2 * 100) + '%" title="' +
+        x.m + '~' + (x.m + 2) + '분 · ' + x.n + '회"></div>').join('') + '</div>' +
+        '<div class="spx"><span>0분</span><span>15분</span><span>30분+</span></div>' +
+        '<p class="muted">2분 단위입니다. 봉우리가 6~10분에 있으면 2코어 타이밍, 0~4분이면 렙2·렙3 올인입니다.</p>');
+    }
+    h += '</div>';
+
+    // 나를 잡은 챔피언 — 만난 판수 대비
+    const bc = (SD.by_champ || []).filter(c => c.faced >= 8 && c.pg != null);
+    if (bc.length) {
+      const mxp = Math.max(...bc.map(c => c.pg), 0.01);
+      h += box('나를 가장 잘 잡는 챔피언', bc.slice(0, 10).map(c =>
+        '<div class="bar"><span class="bl">' + esc(c.l) + '</span><span class="bt">' +
+        '<span class="bf" style="width:' + (c.pg / mxp * 100).toFixed(0) +
+        '%;background:var(--bad)"></span></span>' +
+        '<span class="bv">' + c.pg + '<span style="color:var(--muted);font-weight:400"> /판 · ' +
+        c.n + '회/' + c.faced + '판</span></span></div>').join('') +
+        '<p class="muted">만난 판수로 나눈 값입니다. 8판 이상 만난 챔피언만 보여줍니다 — ' +
+        '한두 판 만나고 한 번 죽은 챔프가 1위로 올라오는 걸 막기 위해서입니다.</p>');
+    }
+  }
+
   // 습관 (연승 / 회색화면 / 시계)
   h += '<h2 id="habit">습관과 리듬</h2><div class="grid2">';
   const S = F.streak;
