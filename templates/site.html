@@ -532,26 +532,44 @@ function renderRoster(q) {
   if (e) e.onchange = () => renderRoster(document.getElementById('search').value);
 });
 // ---------- 전체 순위 ----------
+// 지표마다 '분모'가 다르다. 던진 판의 분모는 총 판수가 아니라 15분에 앞섰던 판수다.
+// nf 를 안 주면 판수 칸이 총 판수를 찍어, 표본 20판짜리가 '47판'으로 보여 순위를
+// 실제보다 믿음직하게 만든다. ci:true 면 윌슨 구간으로 정렬하고 구간을 병기한다.
+const aheadN  = p => (((p.cb||{}).by_lead15||[]).find(r=>String(r.label||'').indexOf('우세')>=0)||{}).n;
+const behindN = p => (((p.cb||{}).by_lead15||[]).find(r=>String(r.label||'').indexOf('열세')>=0)||{}).n;
+const hofV = (p, label) => {
+  const H = (p.fun||{}).hof; if (!H) return null;
+  const h = H.find(x=>x.label===label); return h ? h.value : 0;
+};
 const METRICS = [
-  {k:'wr', l:'승률', f:p=>p.wr, u:'%', hi:true},
-  {k:'kda', l:'KDA', f:p=>p.kda, u:'', hi:true},
-  {k:'kp', l:'킬 관여율', f:p=>p.kp, u:'%', hi:true},
-  {k:'cspm', l:'분당 CS', f:p=>p.cspm, u:'', hi:true},
-  {k:'dpm', l:'분당 딜', f:p=>p.dpm, u:'', hi:true},
-  {k:'vs', l:'시야 점수', f:p=>p.vs, u:'', hi:true},
+  {k:'wr', l:'승률', f:p=>p.wr, u:'%', hi:true, ci:true},
+  {k:'kda', l:'KDA (킬+어시 ÷ 데스 합계)', f:p=>p.kda, u:'', hi:true, dp:2, rf:r=>r.kda},
+  {k:'kp', l:'킬 관여율', f:p=>p.kp, u:'%', hi:true, rf:r=>r.kp},
+  {k:'cspm', l:'분당 CS', f:p=>p.cspm, u:'', hi:true, rf:r=>r.cspm},
+  {k:'dpm', l:'분당 딜', f:p=>p.dpm, u:'', hi:true, rf:r=>r.dpm},
+  {k:'vs', l:'시야 점수', f:p=>p.vs, u:'', hi:true, rf:r=>r.vs},
   {k:'ldg', l:'15분 골드 격차', f:p=>((p.ld||{}).m15||{}).gold, u:'G', hi:true},
   {k:'ldc', l:'15분 CS 격차', f:p=>((p.ld||{}).m15||{}).cs, u:'', hi:true},
-  {k:'dead', l:'죽어 있던 시간(낮을수록 좋음)', f:p=>((p.fun||{}).dead||{}).pct, u:'%', hi:false},
-  {k:'throw', l:'던진 판(낮을수록 좋음)', f:p=>(p.cb||{}).throw_rate, u:'%', hi:false},
-  {k:'come', l:'뒤집은 판', f:p=>(p.cb||{}).comeback_rate, u:'%', hi:true},
-  {k:'streak', l:'최장 연승', f:p=>((p.fun||{}).streak||{}).win, u:'연승', hi:true},
-  {k:'penta', l:'펜타킬', f:p=>{const h=((p.fun||{}).hof||[]).find(x=>x.label==='펜타킬');return h?h.value:0;}, u:'회', hi:true},
-  {k:'fb', l:'퍼스트블러드', f:p=>{const h=((p.fun||{}).hof||[]).find(x=>x.label==='퍼스트블러드');return h?h.value:0;}, u:'회', hi:true},
-  {k:'sdpg', l:'판당 피솔킬(낮을수록 좋음)', f:p=>(p.sd||{}).per_game, u:'', hi:false},
-  {k:'skpg', l:'판당 솔킬', f:p=>(p.sd||{}).given_per_game, u:'', hi:true},
-  {k:'snet', l:'솔킬 수지 (준 − 당한)', f:p=>(p.sd||{}).net_per_game, u:'', hi:true},
+  {k:'dead', l:'죽어 있던 시간 — 2~20분, 최근 150판 (낮을수록 좋음)',
+   f:p=>((p.fun||{}).dead||{}).pct, u:'%', hi:false, nf:p=>((p.fun||{}).dead||{}).n},
+  {k:'throw', l:'던진 판 — 팀이 15분에 앞섰던 판의 패배율 (낮을수록 좋음)',
+   f:p=>(p.cb||{}).throw_rate, u:'%', hi:false, ci:true, nf:aheadN},
+  {k:'come', l:'뒤집은 판 — 팀이 15분에 밀렸던 판의 승률',
+   f:p=>(p.cb||{}).comeback_rate, u:'%', hi:true, ci:true, nf:behindN},
+  {k:'streak', l:'최장 연승 (운으로 나올 기대치 대비)', u:'', hi:true,
+   f:p=>{const t=((p.fun||{}).streak||{}); return (t.win==null||t.expected==null)? null : t.win-t.expected;},
+   fmt:(v,p)=>{const t=((p.fun||{}).streak||{});
+     return (v>0?'+':'')+(Math.round(v*10)/10)+'<span style="color:var(--muted);font-weight:400;font-size:11px"> '
+       +t.win+'연승 · 기대 '+t.expected+'</span>';}},
+  {k:'fb', l:'판당 퍼스트블러드', u:'%', hi:true,
+   f:p=>{const v=hofV(p,'퍼스트블러드'); return v==null? null : v/p.n*100;}},
+  {k:'sdpg', l:'판당 피솔킬(낮을수록 좋음)', f:p=>(p.sd||{}).per_game, u:'', hi:false, dp:2},
+  {k:'skpg', l:'판당 솔킬', f:p=>(p.sd||{}).given_per_game, u:'', hi:true, dp:2},
+  {k:'snet', l:'솔킬 수지 (준 − 당한)', f:p=>(p.sd||{}).net_per_game, u:'', hi:true, dp:2},
 ];
-const ROLE_SENSITIVE = new Set(['cspm','dpm','vs','ldg','ldc','kp','sdpg','skpg','snet']);
+// 펜타킬은 19명 중 18명이 0회라 순위가 성립하지 않아 뺐다(개인 명예의 전당에는 남아 있다).
+const ROLE_SENSITIVE = new Set(['cspm','dpm','vs','ldg','ldc','kp','kda','fb','dead',
+                                'sdpg','skpg','snet']);
 const mSel = document.getElementById('lbMetric');
 METRICS.forEach(m=>{const o=document.createElement('option');o.value=m.k;o.textContent=m.l;mSel.appendChild(o);});
 const roleSel = document.getElementById('lbRoleSel');
@@ -562,40 +580,73 @@ function renderRank(){
   const m = METRICS.find(x=>x.k===mSel.value)||METRICS[0];
   const onlyRole = document.getElementById('lbRole').checked;
   const want = roleSel.value;
-  let rows = D.players.map(p=>({p, v:m.f(p)})).filter(r=>r.v!=null && !isNaN(r.v));
-  if (onlyRole) rows = rows.filter(r=>r.p.role===want);
-  // 승률은 표본이 47~465판으로 제각각이라 원자료로 줄세우면 표본 잡음이 등수가 된다.
-  // 윌슨 95% 하한으로 정렬하고 구간을 함께 보여준다.
-  if (m.k === 'wr') {
-    rows.forEach(r => { const ci = wilson(Math.round(r.v/100*r.p.n), r.p.n);
+  const total = D.players.length;
+
+  // 라인만 보기 = 사람만 거르는 게 아니라 **그 라인 판만으로 다시 잰 값**을 쓴다.
+  // 주 라인 비중이 38%인 사람을 전 라인 평균으로 정글 표에 올리면 순위가 뒤집힌다.
+  let rows;
+  if (onlyRole && m.rf) {
+    rows = D.players.filter(p=>p.role===want).map(p=>{
+      const rr = (p.roles||[]).find(x=>x.r===want);
+      return rr ? {p, v:m.rf(rr), n:rr.n, scoped:true} : null;
+    }).filter(r=>r && r.v!=null && !isNaN(r.v) && r.n>=20);
+  } else {
+    rows = D.players.map(p=>({p, v:m.f(p)})).filter(r=>r.v!=null && !isNaN(r.v));
+    if (onlyRole) rows = rows.filter(r=>r.p.role===want);
+    rows.forEach(r=>{ r.n = m.nf ? m.nf(r.p) : r.p.n; });
+    rows = rows.filter(r=>r.n);
+  }
+  const pool = onlyRole ? D.players.filter(p=>p.role===want).length : total;
+  const dropped = pool - rows.length;
+
+  if (m.ci) {
+    // 비율 지표는 원자료로 줄세우면 표본 잡음이 그대로 등수가 된다.
+    // 분모는 반드시 r.n (그 지표의 실제 표본). r.p.n 을 쓰면 27패를 69패로 착각한다.
+    rows.forEach(r=>{ const ci = wilson(Math.round(r.v/100*r.n), r.n);
       r.lo = ci[0]*100; r.hi2 = ci[1]*100; });
-    rows.sort((a,b)=> b.lo - a.lo);
+    rows.sort((a,b)=> m.hi ? b.lo-a.lo : a.hi2-b.hi2);   // 보수적: 표본 많은 쪽이 위로
   } else {
     rows.sort((a,b)=> m.hi ? b.v-a.v : a.v-b.v);
   }
-  // 동점은 같은 등수로 (연승·펜타킬은 대부분이 동점이라 인덱스를 등수로 쓰면 사실상 가나다순이 된다)
   let rk = 0, prev = null;
-  rows.forEach((r, i) => { const key = m.k === 'wr' ? r.lo : r.v;
-    if (key !== prev) { rk = i + 1; prev = key; } r.rk = rk; });
+  rows.forEach((r,i)=>{ const key = m.ci ? (m.hi ? r.lo : r.hi2) : r.v;
+    if (key !== prev) { rk = i+1; prev = key; } r.rk = rk; });
+
   const out = document.getElementById('lbOut');
-  if(!rows.length){ out.innerHTML='<p class="muted">해당 조건에 표시할 사람이 없습니다.</p>'; return; }
+  if(!rows.length){ out.innerHTML='<p class="muted">해당 조건에 표시할 사람이 없습니다.</p>';
+    document.getElementById('lbNote').textContent=''; return; }
+  const dp = m.dp == null ? 1 : m.dp;
+  const fmt = r => m.fmt ? m.fmt(r.v, r.p)
+    : ((typeof r.v==='number'? r.v.toFixed(dp).replace(/\.?0+$/, s2=>dp>1?s2:'') : r.v) + esc(m.u) +
+       (m.ci ? '<span style="color:var(--muted);font-weight:400;font-size:11px"> '+
+         Math.round(r.lo)+'~'+Math.round(r.hi2)+'</span>' : ''));
   out.innerHTML = '<table class="lb"><thead><tr><th></th><th>닉네임</th>'+
-    '<th style="text-align:right">'+esc(m.l)+'</th><th style="text-align:right">판수</th></tr></thead><tbody>'+
-    rows.map((r,i)=>'<tr><td class="rk">'+r.rk+'</td>'+
+    '<th style="text-align:right">'+esc(m.l)+'</th><th style="text-align:right">'+
+    (m.nf||m.rf&&onlyRole ? '표본' : '판수')+'</th></tr></thead><tbody>'+
+    rows.map(r=>'<tr><td class="rk">'+r.rk+'</td>'+
       '<td class="nm" data-id="'+r.p.id+'">'+esc(r.p.name)+
       '<span class="rolebadge">'+esc(r.p.role)+'</span></td>'+
-      '<td class="val">'+(typeof r.v==='number'? Math.round(r.v*10)/10 : r.v)+esc(m.u)+
-        (m.k==='wr' ? '<span style="color:var(--muted);font-weight:400;font-size:11px"> '+
-          Math.round(r.lo)+'~'+Math.round(r.hi2)+'</span>' : '')+'</td>'+
-      '<td class="val" style="color:var(--muted);font-weight:400">'+r.p.n+'</td></tr>').join('')+
+      '<td class="val">'+fmt(r)+'</td>'+
+      '<td class="val" style="color:var(--muted);font-weight:400">'+r.n+'</td></tr>').join('')+
     '</tbody></table>';
-  const warn = (!onlyRole && ROLE_SENSITIVE.has(m.k));
-  let note = onlyRole
-    ? esc(want)+' 포지션인 사람만 골랐습니다. 다만 수치 자체는 그 사람의 <b>전 라인 평균</b>이라 부계정 라인이 섞여 있습니다.'
-    : (warn ? '⚠ 라인이 섞여 있습니다. 이 지표는 포지션마다 기준이 달라 그대로 비교하면 안 됩니다. 위 체크박스를 켜세요.'
-            : '판수가 적은 사람은 순위가 크게 흔들립니다.');
-  if (m.k === 'wr') note = '18명 전원의 95% 구간이 서로 겹칩니다 — 이 순서는 실력 차이라기보다 <b>표본 잡음</b>입니다. '
-    + '표본이 많을수록 위로 오도록 윌슨 하한으로 정렬했습니다.';
+
+  let note;
+  if (m.ci) {
+    const ov = Math.max(...rows.map(r=>r.lo)) < Math.min(...rows.map(r=>r.hi2));
+    note = rows.length+'명 '+(ov?'<b>전원</b>의':'중 상당수의')+
+      ' 95% 구간이 서로 겹칩니다 — 이 순서는 실력 차이라기보다 <b>표본 잡음</b>입니다. '+
+      '표본이 많을수록 위로 오도록 윌슨 구간으로 정렬했습니다.';
+  } else if (onlyRole && m.rf) {
+    note = esc(want)+' 판만 따로 집계한 값입니다(20판 이상). 전 라인 평균이 아닙니다.';
+  } else if (onlyRole) {
+    note = esc(want)+' 포지션인 사람만 골랐습니다. 다만 수치 자체는 그 사람의 <b>전 라인 평균</b>입니다.';
+  } else if (ROLE_SENSITIVE.has(m.k)) {
+    note = '⚠ 라인이 섞여 있습니다. 이 지표는 포지션마다 기준이 달라 그대로 비교하면 안 됩니다. 위 체크박스를 켜세요.';
+  } else {
+    note = '판수가 적은 사람은 순위가 크게 흔들립니다.';
+  }
+  if (m.nf) note += ' 오른쪽 숫자는 총 판수가 아니라 <b>이 지표의 실제 표본</b>입니다.';
+  if (dropped>0) note += ' 표본이 모자라 '+dropped+'명을 뺐습니다.';
   document.getElementById('lbNote').innerHTML = note;
   out.querySelectorAll('.nm').forEach(td=>td.onclick=()=>{location.hash='#/p/'+td.dataset.id;});
 }
@@ -744,12 +795,24 @@ function renderPlayer(id) {
     (function () {
       const cb = p.cb || {};
       if (cb.throw_rate == null && cb.comeback_rate == null) return '';
+      // 큰 숫자만 띄우면 2패/20판짜리 10.0% 가 확정된 사실처럼 읽힌다. 분모와 구간을 같이 준다.
+      const aN = aheadN(p), bN = behindN(p);
+      const cell = (val, n, col2, head, tail) => {
+        if (val == null) return '';
+        const k = n ? Math.round(val / 100 * n) : null;
+        const ci = n ? wilson(k, n) : null;
+        const thin = !n || n < 30;
+        return '<div><div class="v" style="color:' + (thin ? 'var(--ink)' : col2) + '">' + val + '%' +
+          (thin ? '<span style="font-size:11px;color:var(--muted);font-weight:400"> 표본 부족</span>' : '') +
+          '</div><div class="muted">' + head + (n ? n + '판 중 ' + k + '판' + tail : '') +
+          (ci ? '<br>95% 구간 ' + Math.round(ci[0]*100) + '~' + Math.round(ci[1]*100) + '%' : '') +
+          '</div></div>';
+      };
       return '<div class="box"><div class="two">' +
-        (cb.throw_rate != null ? '<div><div class="v" style="color:var(--bad)">' + cb.throw_rate +
-          '%</div><div class="muted">던진 판 — 15분에 앞서고도 짐</div></div>' : '') +
-        (cb.comeback_rate != null ? '<div><div class="v" style="color:var(--good)">' +
-          cb.comeback_rate + '%</div><div class="muted">뒤집은 판 — 15분에 밀리다 이김</div></div>' : '') +
-        '</div></div>';
+        cell(cb.throw_rate, aN, 'var(--bad)', '던진 판 — 팀이 15분에 +1.5k 앞섰던 ', ' 패배') +
+        cell(cb.comeback_rate, bN, 'var(--good)', '뒤집은 판 — 팀이 15분에 -1.5k 밀렸던 ', ' 승리') +
+        '</div><p class="muted">팀 골드 기준입니다 — 본인이 앞섰다는 뜻은 아닙니다. ' +
+        '표본이 작아 구간이 넓으니 한 자릿수 차이는 의미가 없습니다.</p></div>';
     })() +
     '<div class="grid2">' +
       box('용을 몇 마리 먹었나', bars((o.dragon_count || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
@@ -815,14 +878,14 @@ function renderPlayer(id) {
   if ((F.autopsy || []).length) {
     // 라벨은 analytics/fun_stats.py 가 정하므로 키가 어긋나면 전부 회색이 된다.
     const cols = {'한타에서 죽음':'#6b8cc4','소규모 교전':'#4a9d6f','갱 당함':'#c8a24a',
-                  '솔킬 당함':'#c05a5a','짤림':'#9b59b6','처형(미니언·포탑)':'#7d879c'};
+                  '1:1 라인전 사망':'#c05a5a','짤림':'#9b59b6','처형(미니언·포탑)':'#7d879c'};
     const st = F.autopsy.map(r => '<div style="width:' + r.pct + '%;background:' +
       (cols[r.label] || '#888') + '">' + (r.pct >= 9 ? r.pct + '%' : '') + '</div>').join('');
     const lg = F.autopsy.map(r => '<span><i style="background:' + (cols[r.label] || '#888') +
       '"></i>' + esc(r.label) + ' ' + r.pct + '%</span>').join('');
     h += box('왜 죽었나', '<div class="stack">' + st + '</div>' +
       '<div class="legend">' + lg + '</div>' +
-      '<p class="muted">짤림 = 여러 명에게 아군 없이 잡힘 · 솔킬 당함 = 1:1에서 짐. 3분 이후만 집계.</p>');
+      '<p class="muted">짤림 = 여러 명에게 아군 없이 잡힘 · 1:1 라인전 사망 = 근처에 아군이 없는 상태로 1:1에서 짐. 3분 이후만 집계합니다.<br>위 <b>피솔킬</b> 카드와 숫자가 다릅니다 — 피솔킬은 아군이 옆에 있었든 말든 “어시스트 없이 잡힘” 전부를 세고, 여기 1:1 라인전 사망은 그중 아군이 근처에 없던 것만 셉니다. 위치는 60초 프레임 사이를 보간해 잡습니다.</p>');
   }
   // ---- 피솔킬 ----
   const SD = p.sd || {};
