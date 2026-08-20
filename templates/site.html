@@ -295,6 +295,12 @@ footer{border-top:1px solid var(--line);padding:16px 18px 40px;color:var(--muted
       </div>
       <div class="lbtabs" id="lbTabs" role="tablist"></div>
       <div id="lbOut"></div>
+      <p class="muted" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
+        <b>승률 · 던진 판 · 뒤집은 판은 순위에서 뺐습니다.</b>
+        같은 사람 판을 무작위 반으로 갈라 두 번 순위를 매겨보면 두 순위의 상관이
+        각각 <b>−0.30 · −0.20 · +0.01</b> 로 나옵니다 — 앞쪽 절반에서 잘 나온 사람이
+        뒤쪽 절반에서 오히려 못 나온다는 뜻이고, 순위로 팔 수 있는 숫자가 아닙니다.
+        세 값 모두 각자의 페이지에는 신뢰구간과 함께 그대로 있습니다.</p>
       <p class="muted" id="lbNote"></p>
       <div id="h2hOut" style="margin-top:18px"></div>
     </div>
@@ -303,7 +309,6 @@ footer{border-top:1px solid var(--line);padding:16px 18px 40px;color:var(--muted
         <label>정렬<select id="rSort">
           <option value="name">가나다</option>
           <option value="n">판수 많은 순</option>
-          <option value="wr">승률</option>
           <option value="form">최근 폼</option>
         </select></label>
         <label class="chk"><input type="checkbox" id="rGroup"> 라인별로 묶기</label>
@@ -572,8 +577,12 @@ const hofV = (p, label) => {
   const H = (p.fun||{}).hof; if (!H) return null;
   const h = H.find(x=>x.label===label); return h ? h.value : 0;
 };
+// 반분신뢰도 — scripts/metric_reliability.py 로 400회 측정한 값.
+// 같은 사람 판을 무작위 반씩 갈라 두 순위를 만들었을 때의 Spearman 상관이다.
+// 승률(-0.299) · 던진 판(-0.199) · 뒤집은 판(+0.012) 은 신호가 없어 아예 뺐다.
+const REL = {gpm:.876, skpg:.869, cspm:.846, dead2:.815, kp:.803, dpm:.802, vs:.756,
+             kda:.697, sdpg:.659, ldc:.650, snet:.624, dead:.581, ldg:.382, fb:.310};
 const METRICS = [
-  {k:'wr', l:'승률', f:p=>p.wr, u:'%', hi:true, ci:true, dp:2, rf:r=>r.wr},
   {k:'kda', l:'KDA (킬+어시 ÷ 데스 합계)', f:p=>p.kda, u:'', hi:true, dp:2, rf:r=>r.kda},
   {k:'kp', l:'킬 관여율', f:p=>p.kp, u:'%', hi:true, rf:r=>r.kp},
   {k:'cspm', l:'분당 CS', f:p=>p.cspm, u:'', hi:true, rf:r=>r.cspm},
@@ -583,10 +592,6 @@ const METRICS = [
   {k:'ldc', l:'15분 CS 격차', f:p=>((p.ld||{}).m15||{}).cs, u:'', hi:true},
   {k:'dead', l:'죽어 있던 시간 — 2~20분, 최근 150판 (낮을수록 좋음)',
    f:p=>((p.fun||{}).dead||{}).pct, u:'%', hi:false, nf:p=>((p.fun||{}).dead||{}).n},
-  {k:'throw', l:'던진 판 — 팀이 15분에 앞섰던 판의 패배율 (낮을수록 좋음)',
-   f:p=>(p.cb||{}).throw_rate, u:'%', hi:false, ci:true, nf:aheadN},
-  {k:'come', l:'뒤집은 판 — 팀이 15분에 밀렸던 판의 승률',
-   f:p=>(p.cb||{}).comeback_rate, u:'%', hi:true, ci:true, nf:behindN},
   {k:'streak', l:'최장 연승 (운으로 나올 기대치 대비)', u:'', hi:true,
    f:p=>{const t=((p.fun||{}).streak||{}); return (t.win==null||t.expected==null)? null : t.win-t.expected;},
    fmt:(v,p)=>{const t=((p.fun||{}).streak||{});
@@ -602,7 +607,9 @@ const METRICS = [
 const ROLE_SENSITIVE = new Set(['cspm','dpm','vs','ldg','ldc','kp','kda','fb','dead',
                                 'sdpg','skpg','snet']);
 const mSel = document.getElementById('lbMetric');
-METRICS.forEach(m=>{const o=document.createElement('option');o.value=m.k;o.textContent=m.l;mSel.appendChild(o);});
+METRICS.forEach(m=>{const o=document.createElement('option');o.value=m.k;
+  o.textContent = m.l + (REL[m.k] != null && REL[m.k] < 0.5 ? '  (신뢰도 낮음)' : '');
+  mSel.appendChild(o);});
 // 라인 탭 — 기본이 '전체'. 체크박스+셀렉트 두 단계였더니 지금 무엇이 켜져 있는지 안 보였다.
 const ROLE_TABS = ['전체','탑','정글','미드','원딜','서포터'];
 let lbRole = '전체';
@@ -729,6 +736,13 @@ function renderRank(){
     note = '판수가 적은 사람은 순위가 크게 흔들립니다.';
   }
   if (m.nf) note += ' 오른쪽 숫자는 총 판수가 아니라 <b>이 지표의 실제 표본</b>입니다.';
+  const rel = REL[m.k];
+  if (rel != null) {
+    note += ' 이 지표의 재현성은 <b>' + rel.toFixed(2) + '</b>입니다';
+    note += rel >= 0.6 ? ' (같은 사람 판을 반씩 갈라 매긴 두 순위가 그만큼 일치합니다).'
+      : rel >= 0.4 ? ' — 순위가 꽤 흔들립니다. 큰 차이만 믿으세요.'
+      : ' — <b>거의 우연입니다.</b> 순서를 믿지 마세요.';
+  }
   if (m.k==='sdpg' || m.k==='skpg' || m.k==='snet')
     note += ' 피솔킬은 라인 격차가 2.6배입니다(탑 1.97 ↔ 서포터 0.76) — 라인 탭을 켜고 보세요. '+
       '그리고 데스 수가 같다면 피솔킬 1회가 팀 데스 1회보다 더 나쁘지는 않습니다(실측). '+
