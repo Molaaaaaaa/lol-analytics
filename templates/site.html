@@ -1,1327 +1,1327 @@
-<!doctype html>
-<html lang="ko"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>솔랭 해체 분석기</title>
-<meta name="description" content="해체하여, 지식을 습득한다. 친구들 솔로랭크 분석 — 챔피언·맞라인·오브젝트·죽음의 지도·데스 부검.">
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="솔랭 해체 분석기">
-<meta property="og:title" content="솔랭 해체 분석기">
-<meta property="og:description" content="해체하여, 지식을 습득한다.">
-<meta property="og:url" content="https://lol-disassembly-analyzer.pages.dev/">
-<meta property="og:image" content="https://lol-disassembly-analyzer.pages.dev/og.png?v=3">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="솔랭 해체 분석기">
-<meta name="twitter:description" content="해체하여, 지식을 습득한다.">
-<meta name="twitter:image" content="https://lol-disassembly-analyzer.pages.dev/og.png?v=3">
-<meta name="theme-color" content="#0e1420">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%94%EF%B8%8F%3C/text%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<style>
-:root{--bg:#f5f3ee;--surf:#fffefb;--line:#e0dbd0;--ink:#1b2030;--ink2:#565f73;--muted:#8b93a5;
---accent:#9a7118;--good:#2f7d55;--bad:#b3474a;--gl:#e8e3d8;--chip:#efece4}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
---bg:#0e1420;--surf:#161d2b;--line:#26304a;--ink:#e8eaf0;--ink2:#a8b0c2;--muted:#79839a;
---accent:#c8a24a;--good:#4a9d6f;--bad:#c05a5a;--gl:#222c3e;--chip:#1e2636}}
-:root[data-theme=dark]{--bg:#0e1420;--surf:#161d2b;--line:#26304a;--ink:#e8eaf0;--ink2:#a8b0c2;
---muted:#79839a;--accent:#c8a24a;--good:#4a9d6f;--bad:#c05a5a;--gl:#222c3e;--chip:#1e2636}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);line-height:1.55;
-font-family:'IBM Plex Sans KR','Malgun Gothic',system-ui,sans-serif}
-.wrap{max-width:1040px;margin:0 auto;padding:0 18px}
-header{background:var(--surf);border-bottom:1px solid var(--line);padding:26px 0 18px}
-.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;
-text-transform:uppercase;color:var(--accent);margin:0 0 6px}
-h1{font-family:'Chakra Petch','IBM Plex Sans KR',sans-serif;font-size:clamp(24px,4vw,36px);
-margin:0;letter-spacing:-.01em}
-.sub{color:var(--ink2);font-size:13px;margin:6px 0 0}
-#search{width:100%;margin-top:16px;padding:11px 14px;font-size:15px;border-radius:9px;
-border:1px solid var(--line);background:var(--bg);color:var(--ink);font-family:inherit}
-#search:focus{outline:2px solid var(--accent);outline-offset:1px}
-main{padding:22px 18px 50px}
-/* 첫 화면은 '사람 고르기'가 목적이라 카드를 얇게 — 지표 비교는 '전체 순위' 탭에 있다 */
-.roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(184px,1fr));gap:8px}
-/* 좁은 화면에서도 2열은 유지 — 1열이면 18명이 세로로 너무 길어진다 */
-@media(max-width:520px){.roster{grid-template-columns:repeat(2,1fr);gap:6px}
-.card{padding:8px 10px}.cn{font-size:13.5px}.wrbig{font-size:15px}.csub{font-size:11px}}
-.card{background:var(--surf);border:1px solid var(--line);border-radius:10px;padding:9px 12px;
-cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%;transition:border-color .12s}
-.card:hover,.card:focus-visible{border-color:var(--accent);outline:none}
-.cn{font-weight:600;font-size:14.5px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
-.cn>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.csub{margin-top:2px;font-size:11.5px;color:var(--muted);
-overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tag{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)}
-.crow{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;font-size:11.5px}
-.chip{background:var(--chip);border-radius:20px;padding:2px 9px;color:var(--ink2)}
-.wrbig{font-family:'Chakra Petch',sans-serif;font-size:16px;font-variant-numeric:tabular-nums;flex:none}
-.form{display:flex;gap:2px;margin-top:9px}
-.f{width:100%;height:5px;border-radius:2px;background:var(--bad)}
-.f.w{background:var(--good)}
-.hidden{display:none!important}
-.fbsec{border-top:1px solid var(--line);margin:38px 0 0;padding:22px 0 6px}
-.fbsec h2{margin:0 0 4px;font-size:17px}
-.fbsec>p.lead{margin:0 0 14px;font-size:13px;color:var(--ink2);line-height:1.66;max-width:62ch}
-.fbrow{display:flex;gap:9px;flex-wrap:wrap;margin:0 0 9px}
-.fbrow label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted);flex:1;min-width:150px}
-.fbsec select,.fbsec input,.fbsec textarea{padding:8px 10px;border-radius:8px;border:1px solid var(--line);
-background:var(--bg);color:var(--ink);font-family:inherit;font-size:13px;width:100%;box-sizing:border-box}
-.fbsec textarea{min-height:104px;resize:vertical;line-height:1.6}
-.fbsec select:focus,.fbsec input:focus,.fbsec textarea:focus{outline:none;border-color:var(--accent)}
-.fbfoot{display:flex;gap:11px;align-items:center;flex-wrap:wrap;margin-top:10px}
-.fbsend{background:var(--accent);color:var(--bg);border:none;border-radius:8px;padding:9px 20px;
-font:inherit;font-size:13px;font-weight:600;cursor:pointer}
-.fbsend:hover:not(:disabled){filter:brightness(1.12)}
-.fbsend:disabled{opacity:.5;cursor:default}
-.fbalt{font-size:12px;color:var(--muted)}
-.fbalt a{color:var(--ink2)}
-.fbmsg{font-size:12.5px;margin:9px 0 0;min-height:1.2em}
-.fbmsg.ok{color:var(--good)}
-.fbmsg.err{color:var(--bad)}
-.fbcount{font-size:11px;color:var(--muted);margin-left:auto}
-.notes{margin:26px 0 0;border-top:1px solid var(--line);padding-top:16px}
-.notes>summary{cursor:pointer;font-size:13px;color:var(--ink2);list-style:none;
-display:flex;align-items:center;gap:7px;user-select:none}
-.notes>summary::-webkit-details-marker{display:none}
-.notes>summary::before{content:'▸';color:var(--muted);transition:transform .15s}
-.notes[open]>summary::before{transform:rotate(90deg)}
-.notes>summary:hover{color:var(--accent)}
-.nrel{margin:14px 0 0;padding:0 0 0 14px;border-left:2px solid var(--line)}
-.nrel h4{margin:0 0 7px;font-size:12px;letter-spacing:.06em;color:var(--muted);font-weight:600}
-.nkind{display:inline-block;font-size:10.5px;padding:1px 7px;border-radius:20px;
-margin:0 0 5px;font-weight:600;letter-spacing:.02em}
-.nkind.add{background:rgba(74,157,111,.16);color:#4a9d6f}
-.nkind.fix{background:rgba(107,140,196,.16);color:#6b8cc4}
-.nkind.imp{background:rgba(200,162,74,.16);color:#c8a24a}
-.nkind.bad{background:rgba(192,90,90,.16);color:#c05a5a}
-.notes ul{margin:0 0 12px;padding-left:17px}
-.notes li{font-size:12.5px;line-height:1.62;color:var(--ink2);margin:0 0 4px}
-.notes li b{color:var(--ink)}
-.spark{display:flex;align-items:flex-end;gap:3px;height:78px;padding:4px 0}
-.spark .sb{flex:1;min-height:2px;background:var(--bad);opacity:.78;border-radius:2px 2px 0 0}
-.spark .sb:hover{opacity:1}
-.spx{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:2px}
-.adj{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
-.adj th{text-align:right;font-weight:600;color:var(--muted);font-size:11px;
-padding:5px 7px;border-bottom:1px solid var(--line);white-space:nowrap}
-.adj th:first-child{text-align:left}
-.adj td{padding:6px 7px;border-bottom:1px solid var(--line);text-align:right;
-font-variant-numeric:tabular-nums}
-.adj td:first-child{text-align:left;color:var(--ink)}
-.adj tr:last-child td{border-bottom:none}
-.adj .mv{font-weight:600}
-.adj .up{color:var(--good)}
-.adj .dn{color:var(--bad)}
-.adj .fl{color:var(--muted);font-weight:400}
-.adj .why{font-size:11px;color:var(--muted);text-align:left;padding-top:0;padding-bottom:8px}
-.adj .sub{display:block;color:var(--muted);font-weight:400;font-size:10.5px;line-height:1.3}
-.rctl{display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap;margin:0 0 10px}
-.rctl label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted)}
-.rctl select{padding:6px 9px;border-radius:7px;border:1px solid var(--line);background:var(--bg);
-color:var(--ink);font-family:inherit;font-size:12.5px}
-.rctl .chk{flex-direction:row;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2);
-padding-bottom:7px;cursor:pointer}
-.rgroup{grid-column:1/-1;font-size:11px;letter-spacing:.08em;color:var(--muted);
-text-transform:uppercase;padding:8px 2px 2px;border-bottom:1px solid var(--line);margin-top:4px}
-.rgroup:first-child{margin-top:0}
-.back{background:none;border:none;color:var(--accent);cursor:pointer;font:inherit;padding:0;
-margin-bottom:12px;font-size:13.5px}
-.jump{display:flex;gap:5px;overflow-x:auto;padding:9px 0;margin-bottom:14px;
-border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
-.jump button{white-space:nowrap;background:var(--chip);border:1px solid transparent;color:var(--ink2);
-border-radius:20px;padding:6px 13px;font:inherit;font-size:12.5px;cursor:pointer}
-.jump button:hover,.jump button:focus-visible{border-color:var(--accent);color:var(--accent);outline:none}
-h2{font-family:'Chakra Petch','IBM Plex Sans KR',sans-serif;font-size:14px;letter-spacing:.1em;
-text-transform:uppercase;color:var(--accent);margin:26px 0 8px;padding-bottom:7px;
-border-bottom:1px solid var(--line);scroll-margin-top:52px}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:1px;
-background:var(--line);border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-bottom:6px}
-.kpi{background:var(--surf);padding:10px 12px}
-.kl{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
-.kv{font-family:'Chakra Petch',sans-serif;font-size:21px;font-variant-numeric:tabular-nums}
-.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
-.box{background:var(--surf);border:1px solid var(--line);border-radius:10px;padding:13px 15px}
-.box h3{font-size:14px;margin:0 0 9px;font-weight:600}
-.bar{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:12.5px}
-.bl{width:104px;flex:none;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.bt{flex:1;height:13px;background:var(--gl);border-radius:3px;overflow:hidden}
-.bf{display:block;height:100%;border-radius:3px;background:var(--good)}  /* display 필수: span은 인라인이라 width가 무시돼 막대가 안 그려진다 */
-.bf.lo{background:var(--bad)}
-.bf.neu{background:var(--muted);opacity:.55}
-.bf.un{opacity:.38}  /* 표본이 적어 확신 없음 — 방향(색)은 유지하고 옅게만 */
-.bv{width:74px;flex:none;text-align:right;font-family:'IBM Plex Mono',monospace;
-font-size:11.5px;font-variant-numeric:tabular-nums}
-.bv i{color:var(--muted);font-style:normal;font-size:10.5px}
-.fb{background:var(--surf);border:1px solid var(--line);border-left:3px solid var(--accent);
-border-radius:8px;padding:11px 14px;margin:7px 0;font-size:13.5px}
-.fb b{color:var(--accent)}
-.muted{color:var(--muted);font-size:12px}
-.updated{font-size:12px;color:var(--ink2);margin:10px 0 0;display:flex;gap:8px;align-items:center}
-.themebtn{position:absolute;top:22px;right:18px;background:var(--chip);border:1px solid var(--line);
-color:var(--ink2);border-radius:20px;padding:6px 13px;font:inherit;font-size:12.5px;cursor:pointer;
-display:flex;align-items:center;gap:6px}
-.themebtn:hover,.themebtn:focus-visible{border-color:var(--accent);color:var(--accent);outline:none}
-header{position:relative}
-@media(max-width:520px){.themebtn{top:14px;right:14px;padding:5px 10px;font-size:11.5px}}
-.updated .dot{width:7px;height:7px;border-radius:50%;background:var(--good);flex:none}
-.updated .dot.stale{background:var(--bad)}
-.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-.filters label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted)}
-.filters select{padding:7px 9px;border-radius:7px;border:1px solid var(--line);
-background:var(--bg);color:var(--ink);font-family:inherit;font-size:13px;min-width:118px}
-.filters select:focus{outline:2px solid var(--accent);outline-offset:1px}
-.qres{display:flex;gap:18px;align-items:baseline;flex-wrap:wrap;margin:10px 0}
-.qres .big{font-family:'Chakra Petch',sans-serif;font-size:32px;font-variant-numeric:tabular-nums}
-.glist{max-height:280px;overflow-y:auto;margin-top:8px}
-.grow{display:grid;grid-template-columns:52px 1fr 1fr 1fr 62px;gap:6px;padding:5px 4px;
-font-size:12px;border-bottom:1px solid var(--line);align-items:center}
-.grow.hd{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;
-position:sticky;top:0;background:var(--surf)}
-.tagw{color:var(--good);font-weight:600}.tagl{color:var(--bad);font-weight:600}
-.livebtn{background:var(--accent);color:#12161f;border:none;border-radius:8px;padding:9px 16px;
-font:inherit;font-weight:600;font-size:13px;cursor:pointer}
-.livebtn:hover,.livebtn:focus-visible{filter:brightness(1.08);outline:none}
-.livebtn[disabled]{opacity:.55;cursor:default}
-.lgame{border:1px solid var(--line);border-radius:9px;padding:11px 13px;margin-top:8px}
-.lgame .lt{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap}
-.lstats{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--ink2);margin-top:6px}
-.lstats b{color:var(--ink);font-family:'IBM Plex Mono',monospace}
-.hof{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px}
-.rec{background:var(--surf);border:1px solid var(--line);border-radius:9px;padding:10px 12px}
-.rec .rl{font-size:11px;color:var(--muted)}
-.rec .rv{font-family:'Chakra Petch',sans-serif;font-size:22px;font-variant-numeric:tabular-nums}
-.rec .rm{font-size:11px;color:var(--ink2)}
-.rec.hero{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
-.rec.hero .rv{color:var(--accent)}
-.ld{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:6px 0 2px}
-.ldc{background:var(--surf);border:1px solid var(--line);border-radius:9px;padding:10px 12px;text-align:center}
-.ldc .v{font-family:'Chakra Petch',sans-serif;font-size:24px;font-variant-numeric:tabular-nums}
-.ldc .k{font-size:11px;color:var(--muted)}
-.two{display:flex;gap:22px;flex-wrap:wrap}
-.two .v{font-family:'Chakra Petch',sans-serif;font-size:30px;font-variant-numeric:tabular-nums}
-.tabs{display:flex;gap:2px;margin:14px 0 0;border-bottom:1px solid var(--line)}
-.tabs button{background:none;border:none;border-bottom:2px solid transparent;color:var(--ink2);
-padding:9px 15px;font:inherit;font-size:14px;cursor:pointer}
-.tabs button[aria-selected=true]{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
-.lbctl{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin:14px 0 10px}
-.lbctl label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted)}
-.lbctl select{padding:7px 9px;border-radius:7px;border:1px solid var(--line);background:var(--bg);
-color:var(--ink);font-family:inherit;font-size:13px}
-.lbctl .chk{flex-direction:row;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2);padding-bottom:8px}
-.lb{width:100%;border-collapse:collapse;font-size:13px}
-.lb th{text-align:left;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;
-color:var(--muted);padding:7px 8px;border-bottom:1px solid var(--line)}
-.lb td{padding:8px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
-.lb tr:hover td{background:var(--chip)}
-.lb .rk{width:34px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
-.lb .nm{cursor:pointer;font-weight:500}
-.lbtabs{display:flex;gap:4px;overflow-x:auto;margin:0 0 12px;padding-bottom:2px;
--webkit-overflow-scrolling:touch}
-.lbtabs button{white-space:nowrap;background:var(--chip);border:1px solid transparent;
-color:var(--ink2);border-radius:20px;padding:6px 14px;font:inherit;font-size:12.5px;cursor:pointer}
-.lbtabs button:hover{color:var(--accent)}
-.lbtabs button[aria-selected="true"]{background:var(--accent);color:var(--bg);font-weight:600}
-.lb .ln{color:var(--ink2);font-size:12px;white-space:nowrap}
-.lb .ln small{color:var(--muted);font-size:10.5px}
-.lb .val{white-space:nowrap}
-.lb .sub{color:var(--muted);font-weight:400;font-size:11px;display:block;line-height:1.35}
-.h2grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
-.h2h4{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
-margin:0 0 6px;font-weight:600}
-.h2t{width:100%;border-collapse:collapse;font-size:12.5px}
-.h2t td{padding:6px 4px;border-bottom:1px solid var(--line);vertical-align:middle}
-.h2t tr:last-child td{border-bottom:none}
-.h2t .who{color:var(--ink)}
-.h2t .amp{color:var(--muted);font-size:11px;padding:0 1px}
-.h2t .mid{width:34%;min-width:60px}
-.h2t .res{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
-.h2t .sub2{display:block;color:var(--muted);font-size:10.5px;line-height:1.3}
-.qmore{margin:-4px 0 10px}
-.qmore>summary{cursor:pointer;font-size:12px;color:var(--muted);list-style:none;
-display:inline-flex;align-items:center;gap:6px;user-select:none;padding:4px 0}
-.qmore>summary::-webkit-details-marker{display:none}
-.qmore>summary::before{content:'+';font-weight:600}
-.qmore[open]>summary::before{content:'−'}
-.qmore>summary:hover{color:var(--accent)}
-.qreset{align-self:flex-end;margin-bottom:1px;background:var(--chip);border:1px solid var(--line);
-color:var(--ink2);border-radius:7px;padding:7px 12px;font:inherit;font-size:12.5px;cursor:pointer}
-.qreset:hover{border-color:var(--accent);color:var(--accent)}
-.h2bar{display:block;height:6px;border-radius:3px;background:var(--bad);opacity:.75;overflow:hidden}
-.h2bar i{display:block;height:100%;background:var(--good)}
-@media(max-width:560px){.h2t{font-size:11.5px}.h2t .mid{width:26%}}
-@media(max-width:560px){
-  .lbtabs button{padding:6px 9px;font-size:12px}
-  .lb{font-size:12px}
-  .lb td,.lb th{padding:7px 5px}
-  .lb .rk{width:26px}
-  .lb .ln{font-size:11px}
-  .lb .sub{font-size:10px}
-}
-.lb .nm:hover{color:var(--accent)}
-.lb .val{text-align:right;font-family:'IBM Plex Mono',monospace;font-weight:600}
-.lbwhy{margin:10px 0 0;padding-top:10px;border-top:1px solid var(--line)}
-.lbwhy>summary{cursor:pointer;font-size:12px;color:var(--muted);list-style:none;
-display:inline-flex;gap:6px;user-select:none}
-.lbwhy>summary::-webkit-details-marker{display:none}
-.lbwhy>summary::before{content:'?';font-weight:700;color:var(--accent)}
-.lbwhy>summary:hover{color:var(--accent)}
-.lbwhy p{margin:8px 0 0;font-size:12px;color:var(--muted);line-height:1.7}
-/* 아군/적을 좌우로 나누면서 진영 배지 칸이 없어졌다. 2칸으로 맞춘다 —
-   3칸으로 두면 챔피언 이름이 40px 칸에 눌려 들어간다. */
-.effrow{display:grid;grid-template-columns:1fr 74px;gap:8px;align-items:center;
-padding:6px 2px;border-bottom:1px solid var(--line);font-size:12.5px}
-.effrow:last-child{border-bottom:none}
-.effrow .sd{font-size:10.5px;color:var(--muted)}
-.effrow.dim{opacity:.5}
-.effrow .df{text-align:right;font-family:'IBM Plex Mono',monospace;font-weight:600}
-.mrow{display:grid;grid-template-columns:34px 1fr 74px 58px 50px;gap:7px;align-items:center;
-padding:6px 3px;border-bottom:1px solid var(--line);font-size:12.5px}
-.mrow.hl{background:var(--chip)}
-.h2h{font-size:13px;line-height:1.75}
-.h2h b{color:var(--accent)}
-.streak{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
-.sbig{font-family:'Chakra Petch',sans-serif;font-size:30px;line-height:1}
-.grass{display:flex;gap:2px;flex-wrap:wrap;margin-top:8px}
-.gd{width:9px;height:9px;border-radius:2px;background:var(--bad)}
-.gd.w{background:var(--good)}
-.stack{display:flex;height:22px;border-radius:5px;overflow:hidden;margin:8px 0}
-.stack div{font-size:10px;color:#fff;display:flex;align-items:center;justify-content:center}
-.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2)}
-.legend i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:4px}
-.maps{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media(max-width:560px){.maps{grid-template-columns:1fr}}
-footer{border-top:1px solid var(--line);padding:16px 18px 40px;color:var(--muted);font-size:11.5px}
-</style></head><body>
-<header><button class="themebtn" id="themeBtn" type="button" aria-label="화면 테마 전환"><span id="themeIcon">🌓</span><span id="themeLabel">자동</span></button><div class="wrap">
-  <p class="eyebrow">SOLO QUEUE ANALYTICS</p>
-  <h1><a href="#" id="homeLink" style="color:inherit;text-decoration:none">솔랭 해체 분석기</a></h1>
-  <p class="sub" id="sub"></p>
-  <p class="updated" id="updated"></p>
-  <input id="search" type="search" placeholder="닉네임 검색 (초성도 됩니다 — 예: ㅇㄱㅅ)" autocomplete="off">
-</div></header>
-<main class="wrap">
-  <div id="rosterView">
-    <div class="tabs" role="tablist">
-      <button id="tabList" role="tab" aria-selected="true">닉네임 목록</button>
-      <button id="tabRank" role="tab" aria-selected="false">전체 순위</button>
-    </div>
-    <div id="paneRank" class="hidden">
-      <div class="lbctl">
-        <label>기준<select id="lbMetric"></select></label>
-      </div>
-      <div class="lbtabs" id="lbTabs" role="tablist"></div>
-      <div id="lbOut"></div>
-      <!-- p 가 아니라 div — 안에 details/p 를 넣으면 p 는 브라우저가 강제로 닫는다 -->
-      <div class="muted" id="lbNote" style="font-size:12px;line-height:1.7;margin:10px 0 0"></div>
-      <details class="lbwhy">
-        <summary>승률이 왜 순위에 없나요</summary>
-        <p><b>승률 · 던진 판 · 뒤집은 판은 순위에서 뺐습니다.</b>
-        같은 사람 판을 무작위 반으로 갈라 두 번 순위를 매겨보면 두 순위의 상관이
-        각각 <b>−0.30 · −0.20 · +0.01</b> 로 나옵니다 — 앞쪽 절반에서 잘 나온 사람이
-        뒤쪽 절반에서 오히려 못 나온다는 뜻이고, 순위로 팔 수 있는 숫자가 아닙니다.
-        세 값 모두 각자의 페이지에는 신뢰구간과 함께 그대로 있습니다.</p>
-      </details>
-      <div id="h2hOut" style="margin-top:18px"></div>
-    </div>
-    <div id="paneList">
-      <div class="rctl">
-        <label>정렬<select id="rSort">
-          <option value="name">가나다</option>
-          <option value="n">판수 많은 순</option>
-          <option value="form">최근 폼</option>
-        </select></label>
-        <label class="chk"><input type="checkbox" id="rGroup"> 라인별로 묶기</label>
-      </div>
-      <div class="roster" id="roster"></div>
-      <details class="notes" id="notes"></details>
-    <p class="muted" id="empty" style="display:none">검색 결과가 없습니다.</p></div></div>
-  <div id="playerView" class="hidden"></div>
-  <section class="fbsec" id="fbsec">
-    <h2>피드백</h2>
-    <p class="lead">숫자가 이상하거나, 이런 걸 보고 싶다거나, 그냥 할 말이 있으면 남겨주세요.</p>
-    <div class="fbrow">
-      <label>누구<select id="fbWho"></select></label>
-      <label>무슨 얘기<select id="fbKind">
-        <option>숫자가 이상함</option>
-        <option>버그</option>
-        <option>이런 걸 보고 싶다</option>
-        <option>기타</option>
-      </select></label>
-    </div>
-    <label style="font-size:11px;color:var(--muted)">내용
-      <textarea id="fbBody" maxlength="2000"
-        placeholder="예) 내 맞라인 승률에 원딜로 간 판이 섞인 것 같습니다. 라인 탭을 켜도 그대로인데..."></textarea>
-    </label>
-    <div class="fbfoot">
-      <button class="fbsend" id="fbSend" type="button">보내기</button>
-      <span class="fbalt" id="fbAlt"></span>
-      <span class="fbcount" id="fbCount">0 / 2000</span>
-    </div>
-    <p class="fbmsg" id="fbMsg"></p>
-  </section>
-</main>
-<footer class="wrap"><span id="foot"></span> · Riot Match-V5 / Timeline-V5 기반 ·
-표본이 적은 항목은 신뢰구간을 함께 봐주세요.</footer>
-<script id="DATA" type="application/json">__DATA__</script>
-<script>
-const D = JSON.parse(document.getElementById('DATA').textContent);
-const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-// ---------- 테마: 자동(시스템) → 라이트 → 다크 순환 ----------
-(function () {
-  const MODES = [
-    {k: 'auto',  icon: '🌓', label: '자동'},
-    {k: 'light', icon: '☀️', label: '라이트'},
-    {k: 'dark',  icon: '🌙', label: '다크'},
-  ];
-  const btn = document.getElementById('themeBtn');
-  const ic = document.getElementById('themeIcon'), lb = document.getElementById('themeLabel');
-  let cur = 'auto';
-  try { cur = localStorage.getItem('theme') || 'auto'; } catch (e) {}
-  function apply(k) {
-    cur = MODES.some(m => m.k === k) ? k : 'auto';
-    const root = document.documentElement;
-    if (cur === 'auto') root.removeAttribute('data-theme');
-    else root.setAttribute('data-theme', cur);
-    const m = MODES.find(x => x.k === cur);
-    if (ic) ic.textContent = m.icon;
-    if (lb) lb.textContent = m.label;
-    try { localStorage.setItem('theme', cur); } catch (e) {}
-  }
-  apply(cur);
-  if (btn) btn.onclick = () => {
-    const i = MODES.findIndex(m => m.k === cur);
-    apply(MODES[(i + 1) % MODES.length].k);
-  };
-})();
-const CHO = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
-const initials = s => [...s].map(c => {
-  const i = c.charCodeAt(0) - 0xAC00;
-  return (i >= 0 && i <= 11171) ? CHO[Math.floor(i / 588)] : c;
-}).join('');
-const col = new Intl.Collator('ko', {numeric: true, sensitivity: 'base'});
-const CH = D.champ_ko || {};
-// Riot 은 'FiddleSticks', Data Dragon 은 'Fiddlesticks' — 대소문자가 다르다
-const CHL = Object.fromEntries(Object.entries(CH).map(([k, v]) => [k.toLowerCase(), v]));
-const kch = c => CH[c] || CHL[String(c || '').toLowerCase()] || c;
-// 한글 받침 유무 -> 조사 선택. '정글라도'/'미드이라도' 같은 게 안 나오게.
-const batchim = w => { const s = String(w || ''); if (!s) return false;
-  const c = s.charCodeAt(s.length - 1) - 0xAC00;
-  return c >= 0 && c <= 11171 && (c % 28) !== 0; };
-const josa = (w, withB, noB) => String(w || '') + (batchim(w) ? withB : noB);
-const POS = {TOP: '탑', JUNGLE: '정글', MIDDLE: '미드', BOTTOM: '원딜', UTILITY: '서포터'};
-D.players.sort((a, b) => col.compare(a.name, b.name));
-document.getElementById('sub').textContent =
-  D.players.length + '명 · ' + D.note;
-document.getElementById('foot').textContent = '생성 ' + D.built;
-(function () {
-  const el = document.getElementById('updated');
-  if (!el) return;
-  const st = D.status || {};
-  const when = st.last_success || D.built;
-  let stale = false;
-  try {
-    const t = new Date(when.replace(' ', 'T'));
-    stale = (Date.now() - t.getTime()) > 36 * 3600 * 1000;
-  } catch (e) {}
-  const failed = st.ok === false;
-  el.innerHTML = '<span class="dot' + (stale || failed ? ' stale' : '') + '"></span>' +
-    '마지막 갱신 <b style="color:var(--ink)">' + esc(when) + '</b>' +
-    (failed ? ' <span style="color:var(--bad)">· 최근 갱신 실패: ' + esc(st.detail || '') + '</span>'
-            : (stale ? ' <span style="color:var(--bad)">· 데이터가 오래됐습니다</span>' : ''));
-})();
-
-const rosterEl = document.getElementById('roster');
-
-function cardHTML(p) {
-  // 이름·승률·라인·판수만 남긴다. 태그/KDA/관여/최근폼은 마우스를 올리면 보이고,
-  // 상세는 카드를 누르면 나오므로 첫 화면에 다 펼칠 이유가 없다(18명이면 그게 난잡함의 원인).
-  const w = p.form.slice(-10).filter(Boolean).length, g = p.form.slice(-10).length;
-  const tip = p.name + '#' + p.tag + ' · ' + p.role + ' · ' + p.n + '판 · 승률 ' + p.wr +
-    '% · KDA ' + p.kda + ' · 관여 ' + p.kp + '%' + (g ? ' · 최근 ' + g + '판 ' + w + '승' : '');
-  return '<button class="card" data-id="' + p.id + '" title="' + esc(tip) + '">' +
-    '<div class="cn"><span>' + esc(p.name) + '</span>' +
-      '<span class="wrbig" style="color:' + (p.wr >= 50 ? 'var(--good)' : 'var(--bad)') + '">' +
-      p.wr + '%</span></div>' +
-    '<div class="csub">' + esc(p.role) + ' · ' + p.n + '판</div></button>';
-}
-// ---------- 피드백 창구 ----------
-(function () {
-  var REPO = "https://github.com/molaaaaaaa/lol-analytics";
-  var who = document.getElementById("fbWho");
-  var kind = document.getElementById("fbKind");
-  var body = document.getElementById("fbBody");
-  var send = document.getElementById("fbSend");
-  var msg = document.getElementById("fbMsg");
-  var alt = document.getElementById("fbAlt");
-  var cnt = document.getElementById("fbCount");
-  if (!who || !send) return;
-
-  // 이름 목록 — 로스터에서 고르거나 그냥 두면 익명
-  var opts = ['<option value="">익명으로</option>'];
-  (D.players || []).forEach(function (p) {
-    opts.push('<option value="' + esc(p.name) + '">' + esc(p.name) + "</option>");
-  });
-  who.innerHTML = opts.join("");
-  try {
-    var last = localStorage.getItem("fbWho");
-    if (last) who.value = last;
-  } catch (e) {}
-  who.onchange = function () {
-    try { localStorage.setItem("fbWho", who.value); } catch (e) {}
-  };
-
-  body.oninput = function () {
-    cnt.textContent = body.value.length + " / 2000";
-  };
-
-  // 지금 보고 있는 화면 — 어느 사람 페이지에서 남겼는지 같이 보낸다
-  function where() {
-    var m = (location.hash || "").match(/#\/p\/([a-f0-9]+)/);
-    if (!m) return "목록";
-    var p = (D.players || []).filter(function (x) { return x.id === m[1]; })[0];
-    return p ? p.name + " 페이지" : "개인 페이지";
-  }
-
-  function issueURL() {
-    var t = "[" + kind.value + "] " + (body.value.split("\n")[0] || "").slice(0, 60);
-    var b = body.value + "\n\n---\n화면: " + where() + "\n남긴이: " + (who.value || "익명");
-    return REPO + "/issues/new?title=" + encodeURIComponent(t) + "&body=" + encodeURIComponent(b);
-  }
-  function showAlt(label) {
-    alt.innerHTML = label + ' <a href="' + issueURL() + '" target="_blank" rel="noopener">GitHub Issues에 남기기</a>';
-  }
-  showAlt("또는");
-
-  send.onclick = function () {
-    var t = body.value.trim();
-    if (t.length < 5) {
-      msg.className = "fbmsg err";
-      msg.textContent = "내용을 다섯 글자 이상 적어주세요.";
-      return;
-    }
-    send.disabled = true;
-    msg.className = "fbmsg";
-    msg.textContent = "보내는 중...";
-    fetch("/api/feedback", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ who: who.value, kind: kind.value, body: t, page: where() }),
-    })
-      .then(function (r) { return r.json().then(function (j) { return { s: r.status, j: j }; }); })
-      .then(function (r) {
-        if (r.j && r.j.ok) {
-          msg.className = "fbmsg ok";
-          msg.textContent = "고맙습니다. 잘 받았습니다.";
-          body.value = "";
-          cnt.textContent = "0 / 2000";
-          send.disabled = false;
-          return;
-        }
-        msg.className = "fbmsg err";
-        msg.textContent = (r.j && r.j.error) || "전송에 실패했습니다.";
-        send.disabled = false;
-        if (r.j && r.j.fallback === "github") showAlt("대신");
-      })
-      .catch(function () {
-        msg.className = "fbmsg err";
-        msg.textContent = "전송에 실패했습니다. 아래 링크로 남겨주세요.";
-        send.disabled = false;
-        showAlt("대신");
-      });
-  };
-})();
-
-// ---------- 패치 노트 (원본: 저장소의 PATCHNOTES.md) ----------
-(function () {
-  const el = document.getElementById('notes');
-  const N = D.notes || [];
-  if (!el || !N.length) { if (el) el.remove(); return; }
-  const cls = k => k === '추가' ? 'add' : k === '수정' ? 'fix' : k === '사고' ? 'bad' : 'imp';
-  // 굵게(**...**)만 허용. 나머지는 전부 이스케이프한다.
-  const md = t => esc(t).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
-                        .replace(/`([^`]+)`/g, '<code>$1</code>');
-  el.innerHTML = '<summary>패치 노트 · 최근 갱신 ' + esc(N[0].date) + '</summary>' +
-    N.map(r => '<div class="nrel"><h4>' + esc(r.date) + '</h4>' +
-      r.groups.map(gp => '<div><span class="nkind ' + cls(gp.kind) + '">' + esc(gp.kind) +
-        '</span></div><ul>' + gp.items.map(i => '<li>' + md(i) + '</li>').join('') + '</ul>'
-      ).join('') + '</div>').join('');
-})();
-
-const ROLE_ORDER = ['탑', '정글', '미드', '원딜', '서포터', '미상'];
-function formScore(p) {
-  const f = (p.form || []).slice(-10);
-  return f.length ? f.reduce((a, b) => a + b, 0) / f.length : 0;
-}
-function renderRoster(q) {
-  q = (q || '').trim().toLowerCase();
-  const qi = initials(q);
-  let list = D.players.filter(p => {
-    if (!q) return true;
-    const n = p.name.toLowerCase(), t = (p.tag || '').toLowerCase();
-    return n.includes(q) || t.includes(q) || initials(n).includes(qi);
-  });
-  const sort = (document.getElementById('rSort') || {}).value || 'name';
-  const cmp = {
-    n: (a, b) => b.n - a.n,
-    name: (a, b) => col.compare(a.name, b.name),
-    wr: (a, b) => b.wr - a.wr,
-    form: (a, b) => formScore(b) - formScore(a),
-  }[sort] || ((a, b) => col.compare(a.name, b.name));
-  list = [...list].sort(cmp);
-
-  if ((document.getElementById('rGroup') || {}).checked) {
-    const by = {};
-    list.forEach(p => { (by[p.role] = by[p.role] || []).push(p); });
-    const order = ROLE_ORDER.filter(r => by[r])
-      .concat(Object.keys(by).filter(r => !ROLE_ORDER.includes(r)));
-    rosterEl.innerHTML = order.map(r =>
-      '<div class="rgroup">' + esc(r) + ' ' + by[r].length + '명</div>' +
-      by[r].map(cardHTML).join('')).join('');
-  } else {
-    rosterEl.innerHTML = list.map(cardHTML).join('');
-  }
-  document.getElementById('empty').style.display = list.length ? 'none' : 'block';
-}
-['rSort', 'rGroup'].forEach(id => {
-  const e = document.getElementById(id);
-  if (e) e.onchange = () => renderRoster(document.getElementById('search').value);
-});
-// ---------- 전체 순위 ----------
-// 지표마다 '분모'가 다르다. 던진 판의 분모는 총 판수가 아니라 15분에 앞섰던 판수다.
-// nf 를 안 주면 판수 칸이 총 판수를 찍어, 표본 20판짜리가 '47판'으로 보여 순위를
-// 실제보다 믿음직하게 만든다. (aheadN/behindN 은 개인 페이지 오브젝트 상자에서 쓴다.)
-// 분모는 생성기가 cb.ahead_n / cb.behind_n 으로 직접 준다.
-// 예전에는 by_lead15 라벨에 '우세'/'열세' 가 들어있는지로 찾았는데, 버킷을 0.5k 단위로
-// 쪼개며 라벨을 바꾸자 조용히 undefined 가 됐다 — 라벨은 계약이 될 수 없다.
-const aheadN  = p => (p.cb||{}).ahead_n;
-const behindN = p => (p.cb||{}).behind_n;
-// 반분신뢰도 — scripts/metric_reliability.py 로 400회 측정한 값.
-// 같은 사람 판을 무작위 반씩 갈라 두 순위를 만들었을 때의 Spearman 상관이다.
-// 승률(-0.299) · 던진 판(-0.199) · 뒤집은 판(+0.012) 은 신호가 없어 아예 뺐다.
-const REL = {gpm:.876, skpg:.869, cspm:.846, dpg:.815, kp:.803, dpm:.802, vs:.756,
-             kda:.697, sdpg:.659, ldc:.650, snet:.624, dead:.581, ldg:.382, fb:.310};
-const METRICS = [
-  // 위쪽일수록 잘 재현되는 지표다(REL 참고). 분당 골드·판당 데스는 측정만 해놓고
-  // 순위표에 안 넣고 있었다 — 재현성 0.876 / 0.815 로 가장 믿을 만한 둘이다.
-  {k:'gpm', l:'분당 골드', f:p=>p.gpm, u:'', hi:true, rf:r=>r.gpm},
-  {k:'dpg', l:'판당 데스(낮을수록 좋음)', f:p=>p.dpg, u:'', hi:false, dp:2, rf:r=>r.dpg},
-  {k:'kda', l:'KDA (킬+어시 ÷ 데스 합계)', f:p=>p.kda, u:'', hi:true, dp:2, rf:r=>r.kda},
-  {k:'kp', l:'킬 관여율', f:p=>p.kp, u:'%', hi:true, rf:r=>r.kp},
-  {k:'cspm', l:'분당 CS', f:p=>p.cspm, u:'', hi:true, rf:r=>r.cspm},
-  {k:'dpm', l:'분당 딜', f:p=>p.dpm, u:'', hi:true, rf:r=>r.dpm},
-  {k:'vs', l:'시야 점수', f:p=>p.vs, u:'', hi:true, rf:r=>r.vs},
-  {k:'ldg', l:'15분 골드 격차', f:p=>((p.ld||{}).m15||{}).gold, u:'G', hi:true},
-  {k:'ldc', l:'15분 CS 격차', f:p=>((p.ld||{}).m15||{}).cs, u:'', hi:true},
-  {k:'dead', l:'죽어 있던 시간 — 2~20분, 최근 150판 (낮을수록 좋음)',
-   f:p=>((p.fun||{}).dead||{}).pct, u:'%', hi:false, nf:p=>((p.fun||{}).dead||{}).n},
-  {k:'streak', l:'최장 연승 (운으로 나올 기대치 대비)', u:'', hi:true,
-   f:p=>{const t=((p.fun||{}).streak||{}); return (t.win==null||t.expected==null)? null : t.win-t.expected;},
-   fmt:(v,p)=>{const t=((p.fun||{}).streak||{});
-     return (v>0?'+':'')+(Math.round(v*10)/10)+
-       '<span class="sub">'+t.win+'연승 · 기대 '+t.expected+'</span>';}},
-  // 명예의 전당에서 퍼블 카드를 뺀 뒤로 그 카드를 읽던 이 지표가 전원 0% 가 됐다.
-  // 생성기가 내려주는 fb_rate 를 직접 쓴다. 한 경기에 한 번 · 참가자 10명이라
-  // 무작위여도 10% 가 나오므로 그 기준선을 지표 이름에 박아 둔다.
-  {k:'fb', l:'판당 퍼스트블러드 (무작위여도 10%)', u:'%', hi:true, dp:1,
-   f:p=>p.fb_rate},
-  {k:'sdpg', l:'판당 피솔킬(낮을수록 좋음)', f:p=>(p.sd||{}).per_game, u:'', hi:false, dp:2, rf:r=>r.sdpg},
-  {k:'skpg', l:'판당 솔킬', f:p=>(p.sd||{}).given_per_game, u:'', hi:true, dp:2, rf:r=>r.skpg},
-  {k:'snet', l:'솔킬 수지 (준 − 당한)', f:p=>(p.sd||{}).net_per_game, u:'', hi:true, dp:2, rf:r=>r.snet},
-];
-// 펜타킬은 19명 중 18명이 0회라 순위가 성립하지 않아 뺐다(개인 명예의 전당에는 남아 있다).
-const ROLE_SENSITIVE = new Set(['cspm','dpm','vs','ldg','ldc','kp','kda','fb','dead',
-                                'gpm','dpg','sdpg','skpg','snet']);
-const mSel = document.getElementById('lbMetric');
-METRICS.forEach(m=>{const o=document.createElement('option');o.value=m.k;
-  o.textContent = m.l + (REL[m.k] != null && REL[m.k] < 0.5 ? '  (신뢰도 낮음)' : '');
-  mSel.appendChild(o);});
-// 라인 탭 — 기본이 '전체'. 체크박스+셀렉트 두 단계였더니 지금 무엇이 켜져 있는지 안 보였다.
-const ROLE_TABS = ['전체','탑','정글','미드','원딜','서포터'];
-let lbRole = '전체';
-// 제목을 눌러도 목록으로 — '← 전체 목록' 버튼만으로는 돌아갈 길이 하나뿐이었다.
-(function () {
-  const a = document.getElementById('homeLink');
-  if (a) a.onclick = e => { e.preventDefault(); location.hash = '';
-    window.scrollTo({top: 0, behavior: 'smooth'}); };
-})();
-const lbTabs = document.getElementById('lbTabs');
-ROLE_TABS.forEach(r=>{
-  const n = r==='전체' ? D.players.length : D.players.filter(p=>p.role===r).length;
-  if (r!=='전체' && !n) return;
-  const b=document.createElement('button');
-  b.type='button'; b.dataset.role=r; b.setAttribute('role','tab');
-  b.setAttribute('aria-selected', String(r===lbRole));
-  b.innerHTML = esc(r)+' <span style="opacity:.65;font-size:11px">'+n+'</span>';
-  b.onclick=()=>{ lbRole=r;
-    lbTabs.querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected', String(x.dataset.role===r)));
-    renderRank(); };
-  lbTabs.appendChild(b);
-});
-
-function renderRank(){
-  const m = METRICS.find(x=>x.k===mSel.value)||METRICS[0];
-  const onlyRole = lbRole !== '전체';
-  const want = lbRole;
-  const total = D.players.length;
-
-  // 라인만 보기 = 사람만 거르는 게 아니라 **그 라인 판만으로 다시 잰 값**을 쓴다.
-  // 주 라인 비중이 38%인 사람을 전 라인 평균으로 정글 표에 올리면 순위가 뒤집힌다.
-  let rows;
-  if (onlyRole && m.rf) {
-    rows = D.players.filter(p=>p.role===want).map(p=>{
-      const rr = (p.roles||[]).find(x=>x.r===want);
-      return rr ? {p, v:m.rf(rr), n:rr.n, scoped:true} : null;
-    }).filter(r=>r && r.v!=null && !isNaN(r.v) && r.n>=20);
-  } else {
-    rows = D.players.map(p=>({p, v:m.f(p)})).filter(r=>r.v!=null && !isNaN(r.v));
-    if (onlyRole) rows = rows.filter(r=>r.p.role===want);
-    rows.forEach(r=>{ r.n = m.nf ? m.nf(r.p) : r.p.n; });
-    rows = rows.filter(r=>r.n);
-  }
-  const pool = onlyRole ? D.players.filter(p=>p.role===want).length : total;
-  const dropped = pool - rows.length;
-
-  // 비율 지표(승률·던진 판·뒤집은 판)를 윌슨 구간으로 정렬하던 분기가 있었지만,
-  // 그 세 지표가 재현성 0 이하로 순위표에서 빠지면서 도달할 수 없는 코드가 됐다.
-  // 되살릴 일이 생기면 git 이력에 있다.
-  rows.sort((a,b)=> m.hi ? b.v-a.v : a.v-b.v);
-  let rk = 0, prev = null;
-  rows.forEach((r,i)=>{
-    if (r.v !== prev) { rk = i+1; prev = r.v; } r.rk = rk; });
-
-  const out = document.getElementById('lbOut');
-  if(!rows.length){ out.innerHTML='<p class="muted">해당 조건에 표시할 사람이 없습니다.</p>';
-    document.getElementById('lbNote').textContent=''; return; }
-  const dp = m.dp == null ? 1 : m.dp;
-  // 피솔킬 계열은 라인 격차가 2.6배라 절대값 옆에 그 라인 기준선을 붙인다.
-  const SDB = D.sd_base || {};
-  const baseNote = r => {
-    const key = {sdpg:'sd', skpg:'sk', snet:null}[m.k];
-    if (!key) return '';
-    const role = r.scoped ? want : r.p.role;
-    const b = SDB[role];
-    return b && b[key] != null
-      ? '<span class="sub">'+esc(role)+' 평균 '+b[key]+'</span>' : '';
-  };
-  const fmt = r => m.fmt ? m.fmt(r.v, r.p)
-    : ((typeof r.v==='number'? r.v.toFixed(dp).replace(/\.?0+$/, s2=>dp>1?s2:'') : r.v)
-       + esc(m.u) + baseNote(r));
-  // 라인은 별도 열로. 닉네임 옆 배지로는 포지션이 눈에 안 들어왔다.
-  // 주 라인만 적으면 '미드 유저의 원딜 판'이 섞여 있다는 사실이 숨는다 -> 비중을 같이 적는다.
-  const lnCell = r => {
-    if (r.scoped) return '<td class="ln">'+esc(want)+' <small>판만</small></td>';
-    const sh = r.p.role_share;
-    return '<td class="ln">'+esc(r.p.role)+
-      (sh!=null && sh<85 ? ' <small>'+Math.round(sh)+'%</small>' : '')+'</td>';
-  };
-  out.innerHTML = '<table class="lb"><thead><tr><th></th><th>닉네임</th><th>라인</th>'+
-    '<th style="text-align:right">'+esc(m.l)+'</th><th style="text-align:right">'+
-    ((m.nf || (m.rf && onlyRole)) ? '표본' : '판수')+'</th></tr></thead><tbody>'+
-    rows.map(r=>'<tr><td class="rk">'+r.rk+'</td>'+
-      '<td class="nm" data-id="'+r.p.id+'">'+esc(r.p.name)+'</td>'+
-      lnCell(r)+
-      '<td class="val">'+fmt(r)+'</td>'+
-      '<td class="val" style="color:var(--muted);font-weight:400">'+r.n+'</td></tr>').join('')+
-    '</tbody></table>';
-
-  let note;
-  if (onlyRole && m.rf) {
-    note = esc(want)+' 판만 따로 집계한 값입니다(20판 이상). 전 라인 평균이 아닙니다.';
-  } else if (onlyRole) {
-    note = esc(want)+' 포지션인 사람만 골랐습니다. 다만 수치 자체는 그 사람의 <b>전 라인 평균</b>입니다.';
-  } else if (ROLE_SENSITIVE.has(m.k)) {
-    note = '⚠ 라인이 섞여 있습니다. 이 지표는 포지션마다 기준이 달라 그대로 비교하면 안 됩니다. 위에서 라인 탭을 골라 보세요.';
-  } else {
-    note = '판수가 적은 사람은 순위가 크게 흔들립니다.';
-  }
-  if (m.nf) note += ' 오른쪽 숫자는 총 판수가 아니라 <b>이 지표의 실제 표본</b>입니다.';
-  const rel = REL[m.k];
-  if (rel != null) {
-    note += ' 이 지표의 재현성은 <b>' + rel.toFixed(2) + '</b>입니다';
-    note += rel >= 0.6 ? ' (같은 사람 판을 반씩 갈라 매긴 두 순위가 그만큼 일치합니다).'
-      : rel >= 0.4 ? ' — 순위가 꽤 흔들립니다. 큰 차이만 믿으세요.'
-      : ' — <b>거의 우연입니다.</b> 순서를 믿지 마세요.';
-  }
-  if (dropped>0) note += ' 표본이 모자라 '+dropped+'명을 뺐습니다.';
-  // 길어지는 설명은 접어 둔다 — 표 밑에 다섯 문장이 늘 붙어 있으면 아무도 안 읽는다.
-  let more = '';
-  if (m.k==='sdpg' || m.k==='skpg' || m.k==='snet')
-    more += '<p>피솔킬은 라인 격차가 2.6배입니다(탑 1.97 ↔ 서포터 0.76) — 라인 탭을 켜고 보세요. '+
-      '데스 수가 같다면 피솔킬 1회가 팀 데스 1회보다 더 나쁘지는 않습니다(실측). '+
-      '서포터는 피솔킬 중 맞라이너에게 당한 비중이 12.6%뿐이라 라인전 지표로 읽으면 안 됩니다.</p>';
-  if (!onlyRole && rows.some(r=>r.p.role_share!=null && r.p.role_share<85))
-    more += '<p>라인 옆 %는 주 라인 비중입니다 — 100%가 아니면 다른 라인 판이 섞인 값입니다.</p>';
-  document.getElementById('lbNote').innerHTML = note +
-    (more ? '<details class="lbwhy" style="margin-top:6px;padding-top:6px">'+
-      '<summary>이 지표를 읽는 법</summary>'+more+'</details>' : '');
-  out.querySelectorAll('.nm').forEach(td=>td.onclick=()=>{location.hash='#/p/'+td.dataset.id;});
-}
-function renderH2H(){
-  const el = document.getElementById('h2hOut');
-  const rows = D.h2h||[];
-  if(!el) return;
-  if(!rows.length){ el.innerHTML='<p class="muted">아직 서로 만난 판이 없습니다.</p>'; return; }
-  const same = rows.filter(r=>r.same), vs = rows.filter(r=>!r.same);
-
-  // 예전에는 전부 한 줄에 ' · ' 로 이어붙여서 열 몇 개짜리 문장이 됐다. 표로 나눈다.
-  const duo = {};
-  same.forEach(r=>{const k=r.a+'⁣'+r.b;
-    duo[k]=duo[k]||{n:0,w:0,a:r.a,b:r.b}; duo[k].n++; duo[k].w+=r.awin?1:0;});
-  const pair = {};
-  vs.forEach(r=>{const k=r.a+'⁣'+r.b;
-    pair[k]=pair[k]||{n:0,aw:0,a:r.a,b:r.b}; pair[k].n++; pair[k].aw+=r.awin?1:0;});
-
-  const bar = (l, r2) => {
-    const t = l + r2 || 1;
-    return '<span class="h2bar"><i style="width:'+(l/t*100).toFixed(0)+'%"></i></span>';
-  };
-  const duoRows = Object.values(duo).sort((x,y)=>y.n-x.n).map(v=>{
-    const wr = v.w/v.n*100;
-    return '<tr><td class="who">'+esc(v.a)+' <span class="amp">+</span> '+esc(v.b)+'</td>'+
-      '<td class="mid">'+bar(v.w, v.n-v.w)+'</td>'+
-      '<td class="res"><b style="color:'+(wr>=50?'var(--good)':'var(--bad)')+'">'+
-        wr.toFixed(0)+'%</b><span class="sub2">'+v.w+'승 '+(v.n-v.w)+'패</span></td></tr>';
-  }).join('');
-  const vsRows = Object.values(pair).sort((x,y)=>y.n-x.n).map(v=>{
-    const bw = v.n - v.aw;
-    return '<tr><td class="who">'+esc(v.a)+' <span class="amp">vs</span> '+esc(v.b)+'</td>'+
-      '<td class="mid">'+bar(v.aw, bw)+'</td>'+
-      '<td class="res"><b>'+v.aw+' : '+bw+'</b><span class="sub2">'+v.n+'판</span></td></tr>';
-  }).join('');
-
-  el.innerHTML = '<h3 style="font-size:15px;margin:0 0 3px">우리끼리 만난 판</h3>'+
-    '<p class="muted" style="margin:0 0 12px">총 '+rows.length+'판 · 같은 팀 '+same.length+
-      '판 · 맞붙은 '+vs.length+'판</p>'+
-    '<div class="h2grid">'+
-      (duoRows ? '<div><h4 class="h2h4">같은 팀으로</h4>'+
-        '<table class="h2t"><tbody>'+duoRows+'</tbody></table></div>' : '')+
-      (vsRows ? '<div><h4 class="h2h4">맞붙어서</h4>'+
-        '<table class="h2t"><tbody>'+vsRows+'</tbody></table></div>' : '')+
-    '</div>'+
-    '<p class="muted">막대는 왼쪽 사람 기준입니다. 몇 판 안 되는 조합이 대부분이라 승률은 재미로만 보세요.</p>';
-}
-mSel.onchange=renderRank;
-function showTab(rank){
-  document.getElementById('paneRank').classList.toggle('hidden', !rank);
-  document.getElementById('paneList').classList.toggle('hidden', rank);
-  document.getElementById('tabRank').setAttribute('aria-selected', rank);
-  document.getElementById('tabList').setAttribute('aria-selected', !rank);
-  if(rank){ renderRank(); renderH2H(); }
-}
-document.getElementById('tabRank').onclick=()=>showTab(true);
-document.getElementById('tabList').onclick=()=>showTab(false);
-
-document.getElementById('search').addEventListener('input', e => renderRoster(e.target.value));
-rosterEl.addEventListener('click', e => {
-  const b = e.target.closest('.card');
-  if (b) location.hash = '#/p/' + b.dataset.id;
-});
-
-// (카이제곱 chiP/erf 는 승률·던진 판을 순위에서 빼면서 호출자가 사라져 지웠다.
-//  되살릴 일이 생기면 git 이력에 있다.)
-function wilson(w, n) {
-  if (!n) return [0, 1];
-  const z = 1.96, p = w / n, d = 1 + z * z / n;
-  const c = (p + z * z / (2 * n)) / d;
-  const m = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d;
-  return [Math.max(0, c - m), Math.min(1, c + m)];
-}
-// mode: 'rate'(승률, 50% 기준 편차)  'volume'(판수 길이)  'plain'(단순 값)
-function bars(rows, opt) {
-  opt = opt || {};
-  const mode = opt.mode || 'rate';
-  if (!rows || !rows.length) return '<p class="muted">아직 판수가 모자라요.</p>';
-  const unit = opt.unit != null ? opt.unit : '%';
-  const maxN = Math.max(...rows.map(r => r.n || 0), 1);
-  const maxV = Math.max(...rows.map(r => r.wr == null ? 0 : r.wr), 1);
-  return rows.map(r => {
-    const v = r.wr == null ? 0 : r.wr, n = r.n || 0;
-    let width, cls = '', mark = '';
-    if (mode === 'volume') {
-      width = n / maxN * 100; cls = 'neu';
-    } else if (mode === 'plain') {
-      width = Math.min(100, v / (opt.max || maxV) * 100); cls = 'neu';
-    } else {
-      // 승률: 50%에서 얼마나 벗어났나(±25%p 만점).
-      // 방향(위/아래)은 색으로, 확신은 진하기로 표현한다.
-      const enough = n >= 6;
-      // 표본이 모자라면 숫자를 '—'로 감추므로 막대도 그리지 않는다
-      // (안 그러면 "데이터 부족"인데 막대만 꽉 찬 모순이 생긴다).
-      width = enough ? Math.min(100, Math.abs(v - 50) / 25 * 100) : 0;
-      const ci = wilson(Math.round(v / 100 * n), n);
-      const sure = enough && (ci[0] > 0.5 || ci[1] < 0.5);
-      // 회색(neu)으로 뭉개면 70%와 30%가 같은 길이·같은 색이 되어 구분이 안 된다 → 색은 유지, 옅게.
-      cls = (v >= 50 ? '' : 'lo') + (sure ? '' : ' un');
-      if (sure) mark = v >= 50 ? ' ▲' : ' ▼';
-    }
-    const val = (mode === 'rate' && n > 0 && n < 6) ? '—'
-              : (v.toFixed ? v.toFixed(1).replace(/\.0$/, '') : v) + unit;
-    return '<div class="bar"><span class="bl" title="' + esc(r.l) + '">' + esc(r.l) + '</span>' +
-      '<span class="bt"><span class="bf ' + cls + '" style="width:' + width.toFixed(1) + '%"></span></span>' +
-      '<span class="bv">' + val + mark +
-      (r.n != null && r.n > 0 ? ' <i>' + r.n + '판</i>' : '') + '</span></div>';
-  }).join('');
-}
-function box(title, inner) { return '<div class="box"><h3>' + esc(title) + '</h3>' + inner + '</div>'; }
-
-function renderPlayer(id) {
-  const p = D.players.find(x => x.id === id);
-  if (!p) { location.hash = ''; return; }
-  const o = p.obj || {};
-  const kpi = [['판수', p.n + '판'], ['승률', p.wr + '%'], ['주 라인', p.role],
-               ['KDA', p.kda], ['킬관여', p.kp + '%'], ['분당 CS', p.cspm],
-               ['시야', p.vs], ['분당딜', p.dpm]];
-  const jumps = [['live', '최근 경기'], ['hof', '명예의 전당'], ['ch', '챔피언'], ['query', '조합 조회'],
-                 ['lane', '맞라인'], ['team', '아군·적'], ['obj', '오브젝트'],
-                 ['map', '죽음의 지도'], ['solo', '피솔킬'], ['habit', '습관'],
-                 ['games', '경기 목록'], ['fb', '고칠 점']];
-  let h = '<button class="back" id="back">← 전체 목록</button>' +
-    '<h1 style="margin:0">' + esc(p.name) + ' <span class="tag">#' + esc(p.tag) + '</span></h1>' +
-    '<p class="sub">' + esc(p.role) + ' · ' + p.n + '판 · 승률 ' + p.wr + '%</p>' +
-    '<div class="jump">' + jumps.map(j =>
-      '<button data-go="' + j[0] + '">' + j[1] + '</button>').join('') + '</div>' +
-    '<div class="kpis">' + kpi.map(k =>
-      '<div class="kpi"><div class="kl">' + k[0] + '</div><div class="kv">' + k[1] + '</div></div>'
-    ).join('') + '</div>' +
-    '<h2 id="ch">챔피언</h2><div class="grid2">' +
-      box('많이 한 챔피언', bars(p.champs, {mode: 'volume'})) +
-      box('라인 분포', bars(p.roles.map(r => ({l: r.r, n: r.n, wr: r.wr})), {mode: 'volume'})) + '</div>' +
-    (function () {
-      const L = (p.ld || {}).m15 || (p.ld || {}).m10;
-      if (!L) return '<h2 id="lane">맞라인 상대</h2>';
-      const c = v => v > 0 ? 'var(--good)' : (v < 0 ? 'var(--bad)' : 'var(--ink)');
-      const sg = v => (v > 0 ? '+' : '') + v;
-      const mn = (p.ld || {}).m15 ? 15 : 10;
-      return '<h2 id="lane">맞라인 상대</h2>' +
-        '<div class="box"><h3>' + mn + '분 라인전 격차</h3>' +
-        '<p class="note">같은 경기 맞라이너와의 차이입니다. 티어·메타가 자동으로 통제되는 가장 공정한 지표입니다.</p>' +
-        '<div class="ld">' +
-        '<div class="ldc"><div class="v" style="color:' + c(L.cs) + '">' + sg(L.cs) + '</div>' +
-          '<div class="k">CS 차이</div></div>' +
-        '<div class="ldc"><div class="v" style="color:' + c(L.gold) + '">' + sg(L.gold) + '</div>' +
-          '<div class="k">골드 차이</div></div>' +
-        '<div class="ldc"><div class="v" style="color:' + c(L.xp) + '">' + sg(L.xp) + '</div>' +
-          '<div class="k">경험치 차이</div></div></div>' +
-        '<p class="muted">' + L.n + '판 평균</p></div>';
-    })() +
-    '<div class="grid2">' +
-      box('맞라인 챔피언별 승률', bars(p.lane)) +
-      box('적 정글 챔피언별 승률', bars(p.ejg)) + '</div>' +
-    '<h2 id="team">아군 · 적</h2>' +
-    (function(){
-      const E = p.champ_eff || [], M = p.champ_eff_meta || {};
-      if(!E.length) return box('챔피언 궁합', '<p class="muted">아직 판수가 모자라요.</p>');
-      // 아군과 적을 한 목록에 섞어 놓으면 '진영' 배지를 매 줄 읽어야 한다. 좌우로 나눈다.
-      const row = r =>
-        '<div class="effrow' + (r.sig ? '' : ' dim') + '">' +
-        '<span>' + esc(r.l) + ' <span class="sd">' + r.n + '판</span></span>' +
-        '<span class="df" style="color:' + (r.diff >= 0 ? 'var(--good)' : 'var(--bad)') + '">' +
-        (r.diff >= 0 ? '+' : '') + r.diff + '%p</span></div>';
-      const side = (want, title, empty) => {
-        const rows = E.filter(r => r.side === want);
-        return box(title, rows.length ? rows.map(row).join('')
-          : '<p class="muted">' + empty + '</p>');
-      };
-      return '<div class="grid2">' +
-        side('아군', '아군일 때 — 내 평균 ' + M.base + '% 대비',
-             '눈에 띄는 차이가 없습니다.') +
-        side('적', '적일 때 — 내 평균 ' + M.base + '% 대비',
-             '눈에 띄는 차이가 없습니다.') +
-        '</div>' +
-        '<p class="muted" style="margin:-6px 0 14px">+%p 는 그 챔피언이 있을 때 내 승률이 ' +
-        '평소보다 얼마나 높았는지입니다. 표본이 적으면 내 평균 쪽으로 당겨서 계산했고' +
-        '(베이즈 축소), 흐릿한 줄은 우연일 수 있는 차이입니다.' +
-        (M.few_games ? ' 판수가 모자란 조합 ' + M.few_games + '건' : '') +
-        (M.not_significant ? ' · 차이가 우연 범위인 조합 ' + M.not_significant + '건' : '') +
-        ((M.few_games || M.not_significant) ? '은 숨겼습니다.' : '') + '</p>';
-    })() +
-    '<div class="grid2">' +
-      box('아군 정글 챔피언별 승률', bars(p.ajg)) + '</div>' +
-    '<h2 id="obj">오브젝트</h2>' +
-    (function () {
-      const cb = p.cb || {};
-      if (cb.throw_rate == null && cb.comeback_rate == null) return '';
-      // 큰 숫자만 띄우면 2패/20판짜리 10.0% 가 확정된 사실처럼 읽힌다. 분모와 구간을 같이 준다.
-      const aN = aheadN(p), bN = behindN(p);
-      const cell = (val, n, col2, head, tail) => {
-        if (val == null) return '';
-        const k = n ? Math.round(val / 100 * n) : null;
-        const ci = n ? wilson(k, n) : null;
-        const thin = !n || n < 30;
-        return '<div><div class="v" style="color:' + (thin ? 'var(--ink)' : col2) + '">' + val + '%' +
-          (thin ? '<span style="font-size:11px;color:var(--muted);font-weight:400"> 표본 부족</span>' : '') +
-          '</div><div class="muted">' + head + (n ? n + '판 중 ' + k + '판' + tail : '') +
-          (ci ? '<br>95% 구간 ' + Math.round(ci[0]*100) + '~' + Math.round(ci[1]*100) + '%' : '') +
-          '</div></div>';
-      };
-      return '<div class="box"><div class="two">' +
-        cell(cb.throw_rate, aN, 'var(--bad)', '던진 판 — 팀이 15분에 +1.5k 앞섰던 ', ' 패배') +
-        cell(cb.comeback_rate, bN, 'var(--good)', '뒤집은 판 — 팀이 15분에 -1.5k 밀렸던 ', ' 승리') +
-        '</div><p class="muted">팀 골드 기준입니다 — 본인이 앞섰다는 뜻은 아닙니다. ' +
-        '표본이 작아 구간이 넓으니 한 자릿수 차이는 의미가 없습니다.</p></div>';
-    })() +
-    '<div class="grid2">' +
-      box('획득 용 수별 승률', bars((o.dragon_count || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
-      box('첫 용 획득 시점별 승률', bars((o.first_dragon_time || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
-      box('첫 용 속성별 승률', bars((o.first_dragon_element || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
-      box('오브젝트 선취 시 승률', bars((o.firsts || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
-      box('공허 유충 획득 시 승률', bars((o.horde_bin || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
-      box('15분 골드 차이별 승률', bars(((p.cb || {}).by_lead15 || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
-      '</div>';
-  if ((o.impact || []).length) {
-    const gmax = Math.max(...(o.impact || []).map(r => Math.abs(r.gap)), 1);
-    h += box('오브젝트별 승률 차이 (획득 − 내줌)', (o.impact || []).map(r =>
-      '<div class="bar"><span class="bl">' + esc(r.label) + '</span><span class="bt">' +
-      '<span class="bf" style="width:' + (Math.abs(r.gap) / gmax * 100).toFixed(0) + '%"></span></span>' +
-      '<span class="bv">' + (r.gap >= 0 ? '+' : '') + r.gap + '%p</span></div>').join('') +
-      '<p class="muted">획득한 판과 내준 판의 승률 차이입니다. 인과가 아니라 동반 관계입니다.</p>');
-  }
-  h += '<h2 id="live">최근 경기</h2><div class="box">' +
-    '<p class="note">아래 통계는 하루 한 번 갱신됩니다. 방금 한 게임은 이 버튼으로 바로 확인하세요.</p>' +
-    '<button class="livebtn" id="liveBtn">최근 경기 불러오기</button>' +
-    '<div id="liveOut"></div></div>';
-
-  const F = p.fun || {};
-  // 명예의 전당 (챔피언 섹션 앞으로 이동시키기 위해 별도 삽입)
-  if ((F.hof || []).length) {
-    const hof = F.hof.map(r =>
-      '<div class="rec' + (r.hero ? ' hero' : '') + '"><div class="rl">' + esc(r.label) + '</div>' +
-      '<div class="rv">' + r.value.toLocaleString() + '<span style="font-size:12px">' +
-      esc(r.unit || '') + '</span></div>' +
-      '<div class="rm" data-when="' + esc(r.when) + '">' + esc(r.champ) + ' · ' + esc(r.when) +
-      (r.win ? ' · 승' : ' · 패') + '</div></div>').join('');
-    h = h.replace('<h2 id="ch">', '<h2 id="hof">명예의 전당</h2><div class="hof">' + hof +
-      '</div><p class="muted">최고 기록은 판수가 많을수록 커집니다. 판수와 함께 보세요.' +
-      ((F.hof || []).some(r => r.surrender)
-        ? ' 최속 승리가 15~16분이면 대개 상대 항복입니다 — 항복 가능한 가장 이른 시각이 15분입니다.'
-        : '') + '</p>' +
-      '<h2 id="ch">');
-  }
-  // 죽음의 지도
-  const M = F.map || {};
-  if (M.grid) {
-    const cell = (v, mx, hue) => {
-      const a = mx ? Math.min(1, v / mx) : 0;
-      return '<rect x="0" y="0" width="1" height="1" fill="' + hue +
-             '" fill-opacity="' + (a * 0.92).toFixed(2) + '"/>';
-    };
-    const mapSVG = (g, hue, label) => {
-      const mx = Math.max(...g.flat(), 1);
-      let r = '<svg viewBox="0 0 ' + M.grid + ' ' + M.grid + '" class="chart" ' +
-              'style="width:100%;border:1px solid var(--line);border-radius:8px;background:var(--gl)">';
-      for (let j = 0; j < M.grid; j++) for (let i = 0; i < M.grid; i++) {
-        const v = g[j][i]; if (!v) continue;
-        r += '<rect x="' + i + '" y="' + (M.grid - 1 - j) + '" width="1" height="1" fill="' + hue +
-             '" fill-opacity="' + Math.min(1, v / mx * 0.95).toFixed(2) + '"><title>' + v + '</title></rect>';
-      }
-      r += '<line x1="0" y1="' + M.grid + '" x2="' + M.grid + '" y2="0" stroke="var(--muted)" ' +
-           'stroke-width="0.06" stroke-dasharray="0.3 0.3"/></svg>';
-      return '<div><h3 style="font-size:13px;margin:0 0 6px">' + label + '</h3>' + r + '</div>';
-    };
-    h += '<h2 id="map">죽음의 지도</h2><div class="box"><div class="maps">' +
-      mapSVG(M.deaths, 'var(--bad)', '내가 죽은 곳 (' + M.n_death + '회)') +
-      mapSVG(M.kills, 'var(--good)', '내가 킬 낸 곳 (' + M.n_kill + '회)') +
-      '</div><p class="muted">항상 블루 진영 기준으로 뒤집어 겹쳤습니다. 왼쪽 아래가 우리 본진, 대각선이 미드입니다.</p></div>';
-  }
-  // 데스 부검
-  if ((F.autopsy || []).length) {
-    // 라벨은 analytics/fun_stats.py 가 정하므로 키가 어긋나면 전부 회색이 된다.
-    const cols = {'한타에서 죽음':'#6b8cc4','소규모 교전':'#4a9d6f','갱 당함':'#c8a24a',
-                  '1:1 라인전 사망':'#c05a5a','짤림':'#9b59b6','처형(미니언·포탑)':'#7d879c'};
-    const st = F.autopsy.map(r => '<div style="width:' + r.pct + '%;background:' +
-      (cols[r.label] || '#888') + '">' + (r.pct >= 9 ? r.pct + '%' : '') + '</div>').join('');
-    const lg = F.autopsy.map(r => '<span><i style="background:' + (cols[r.label] || '#888') +
-      '"></i>' + esc(r.label) + ' ' + r.pct + '%</span>').join('');
-    h += box('죽은 이유', '<div class="stack">' + st + '</div>' +
-      '<div class="legend">' + lg + '</div>' +
-      '<p class="muted">짤림 = 여러 명에게 아군 없이 잡힘 · 1:1 라인전 사망 = 근처에 아군이 없는 상태로 1:1에서 짐. 3분 이후만 집계합니다.<br>위 <b>피솔킬</b> 카드와 숫자가 다릅니다 — 피솔킬은 아군이 옆에 있었든 말든 “어시스트 없이 잡힘” 전부를 세고, 여기 1:1 라인전 사망은 그중 아군이 근처에 없던 것만 셉니다. 위치는 60초 프레임 사이를 보간해 잡습니다.</p>');
-  }
-  // ---- 피솔킬 ----
-  const SD = p.sd || {};
-  if (SD.n != null && SD.games) {
-    const net = SD.net_per_game;
-    const netCol = net > 0.05 ? 'var(--good)' : (net < -0.05 ? 'var(--bad)' : 'var(--ink)');
-    const kp2 = [
-      ['판당 피솔킬', SD.per_game, 'var(--bad)'],
-      ['판당 솔킬', SD.given_per_game, 'var(--good)'],
-      ['수지 (준 − 당한)', (net > 0 ? '+' : '') + net, netCol],
-      ['한 번도 안 당한 판', SD.clean_pct + '%', 'var(--ink)'],
-    ];
-    h += '<h2 id="solo">피솔킬</h2>' +
-      '<div class="kpis">' + kp2.map(k =>
-        '<div class="kpi"><div class="kl">' + k[0] + '</div>' +
-        '<div class="kv" style="color:' + k[2] + '">' + k[1] + '</div></div>').join('') + '</div>' +
-      '<p class="muted" style="margin:-4px 0 12px">' + SD.games + '판에서 ' + SD.n +
-      '회 당하고 ' + SD.given + '회 냈습니다. <b>피솔킬 = 어시스트 없이 적 챔피언 한 명에게 잡힌 죽음</b>으로, ' +
-      '라이엇이 세는 “솔로 킬”과 똑같은 자를 뒤집어 쓴 것입니다(4,000행에서 정확히 일치 확인). ' +
-      '다만 아군이 옆에 있는데 적 정글에게 혼자 잡혀도 여기 들어갑니다 — 그래서 아래에 라인전 비중과 가해자 라인을 따로 뒀습니다.</p>' +
-      '<div class="grid2">';
-
-    // 가해자 라인
-    if ((SD.by_role || []).length) {
-      const rc = {'맞라이너':'#c05a5a','정글':'#c8a24a','탑':'#6b8cc4','미드':'#4a9d6f',
-                  '원딜':'#9b59b6','서포터':'#7d879c','미상':'#888'};
-      const st2 = SD.by_role.map(r => '<div style="width:' + r.pct + '%;background:' +
-        (rc[r.l] || '#888') + '">' + (r.pct >= 9 ? r.pct + '%' : '') + '</div>').join('');
-      const lg2 = SD.by_role.map(r => '<span><i style="background:' + (rc[r.l] || '#888') +
-        '"></i>' + esc(r.l) + ' ' + r.n + '회</span>').join('');
-      h += box('피솔킬 가해자 라인', '<div class="stack">' + st2 + '</div>' +
-        '<div class="legend">' + lg2 + '</div>' +
-        '<p class="muted">맞라이너 ' + SD.vs_laner_pct + '% · 라인전(0~15분)에 ' + SD.lane_pct +
-        '%가 몰려 있습니다. 맞라이너 비중이 높으면 라인전 문제, 정글·로밍 비중이 높으면 시야와 콜 문제입니다.</p>');
-    }
-
-    // 시간 분포
-    if ((SD.by_min || []).length) {
-      const mx2 = Math.max(...SD.by_min.map(x => x.n), 1);
-      h += box('피솔킬 시간대 분포', '<div class="spark">' + SD.by_min.map(x =>
-        '<div class="sb" style="height:' + Math.round(x.n / mx2 * 100) + '%" title="' +
-        x.m + '~' + (x.m + 2) + '분 · ' + x.n + '회"></div>').join('') + '</div>' +
-        '<div class="spx"><span>0분</span><span>15분</span><span>30분+</span></div>' +
-        '<p class="muted">2분 단위입니다. 봉우리가 6~10분에 있으면 2코어 타이밍, 0~4분이면 렙2·렙3 올인입니다.</p>');
-    }
-    h += '</div>';
-
-    // 나를 잡은 챔피언 — 만난 판수 대비
-    const bc = (SD.by_champ || []).filter(c => c.faced >= 8 && c.pg != null);
-    if (bc.length) {
-      const mxp = Math.max(...bc.map(c => c.pg), 0.01);
-      h += box('나를 가장 잘 잡는 챔피언', bc.slice(0, 10).map(c =>
-        '<div class="bar"><span class="bl">' + esc(c.l) + '</span><span class="bt">' +
-        '<span class="bf" style="width:' + (c.pg / mxp * 100).toFixed(0) +
-        '%;background:var(--bad)"></span></span>' +
-        '<span class="bv">' + c.pg + '<span style="color:var(--muted);font-weight:400"> /판 · ' +
-        c.n + '회/' + c.faced + '판</span></span></div>').join('') +
-        '<p class="muted">만난 판수로 나눈 값입니다. 8판 이상 만난 챔피언만 보여줍니다 — ' +
-        '한두 판 만나고 한 번 죽은 챔프가 1위로 올라오는 걸 막기 위해서입니다.</p>');
-    }
-  }
-
-  // 습관 (연승 / 회색화면 / 시계)
-  h += '<h2 id="habit">습관과 리듬</h2><div class="grid2">';
-  const S = F.streak;
-  if (S) {
-    const grass = (S.recent || []).map(w => '<div class="gd' + (w ? ' w' : '') + '"></div>').join('');
-    h += box('연승 · 연패', '<div class="streak">' +
-      '<div><div class="muted">최장 연승</div><div class="sbig" style="color:var(--good)">' +
-      S.win + '</div></div>' +
-      '<div><div class="muted">최장 연패</div><div class="sbig" style="color:var(--bad)">' +
-      S.loss + '</div></div>' +
-      '<div><div class="muted">현재</div><div class="sbig">' + S.cur +
-      (S.cur_win ? '연승' : '연패') + '</div></div></div>' +
-      '<div class="grass">' + grass + '</div>' +
-      (S.expected ? '<p class="muted">이 승률·판수면 순전히 운으로도 ' + S.expected +
-        '연승 정도는 나옵니다. 그보다 훨씬 길면 진짜 상승세.</p>' : ''));
-  }
-  const DS = F.dead || {};
-  if (DS.pct != null) {
-    h += box('죽어 있던 시간', '<div class="sbig">' + DS.pct + '%</div>' +
-      '<p class="muted">2~20분 동안 죽어 있던 시간 비율입니다' +
-      (DS.n ? ' (최근 ' + DS.n + '판 기준)' : '') + '. 낮을수록 좋습니다. ' +
-      '20분 이후는 안 셉니다 — 전 구간으로 재면 이 값보다 커집니다.</p>' +
-      bars((DS.curve || []).filter(c => c.m % 4 === 0).map(c =>
-        ({l: c.m + '분', wr: c.v})), {mode: 'plain', max: 30}));
-  }
-  if ((F.clock || []).length) {
-    h += box('시간대별 승률 (한국 시간)', bars(F.clock.map(r =>
-      ({l: r.label, n: r.n, wr: r.winrate}))));
-  }
-  h += '</div>';
-
-  // ---- 자유 조합 조회 ----
-  if ((p.games || []).length) {
-    const uniq = (k) => [...new Set(p.games.map(g => g[k]).filter(Boolean))].sort(
-      (a, b) => col.compare(a, b));
-    const sel = (id, lab, opts) => '<label>' + lab +
-      '<select id="' + id + '"><option value="">전체</option>' +
-      opts.map(o => '<option>' + esc(o) + '</option>').join('') + '</select></label>';
-    h += '<h2 id="query">조합 조회</h2><div class="box">' +
-      '<p class="note">조건을 골라 그 상황의 전적만 볼 수 있습니다. ' +
-      '조합이 좁을수록 표본이 작아지니 판수를 함께 보세요.</p>' +
-      '<div class="filters">' +
-        sel('fC', '내 챔피언', uniq('c')) + sel('fO', '맞라인 상대', uniq('o')) +
-        '<button type="button" class="qreset" id="qReset">초기화</button>' +
-      '</div>' +
-      // 다섯 개를 한 줄에 늘어놓으니 무엇부터 고를지 알 수 없었다.
-      // 실제로 많이 쓰는 둘만 남기고 나머지는 접어 둔다.
-      '<details class="qmore"><summary>조건 더하기 (라인 · 정글)</summary>' +
-        '<div class="filters">' +
-          sel('fR', '내 라인', uniq('r')) + sel('fE', '적 정글', uniq('ej')) +
-          sel('fA', '아군 정글', uniq('aj')) +
-        '</div></details>' +
-      '<div id="qout"></div></div>';
-  }
-
-  // ---- 경기 목록 ----
-  if ((p.recent || []).length) {
-    h += '<h2 id="games">최근 경기 목록</h2><div class="box">' +
-      '<div class="mrow" style="color:var(--muted);font-size:10.5px">' +
-      '<span>결과</span><span>챔피언</span><span>KDA</span><span>CS</span><span>날짜</span></div>' +
-      p.recent.map(g => '<div class="mrow" id="m_' + esc(g.id) + '">' +
-        '<span class="' + (g.w ? 'tagw' : 'tagl') + '">' + (g.w ? '승' : '패') + '</span>' +
-        '<span>' + esc(g.c) + ' <span class="muted">' + esc(g.r) + ' · ' + g.m + '분</span></span>' +
-        '<span style="font-family:IBM Plex Mono,monospace">' + esc(g.kda) + '</span>' +
-        '<span style="font-family:IBM Plex Mono,monospace">' + g.cs + '</span>' +
-        '<span class="muted">' + esc(g.d.slice(5)) + '</span></div>').join('') +
-      '</div>';
-  }
-
-  h += '<h2 id="fb">고칠 점</h2>';
-  h += (p.fb && p.fb.length)
-    ? p.fb.map(t => '<div class="fb">' + t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>') + '</div>').join('')
-    : '<p class="muted">표본이 더 쌓이면 제공됩니다.</p>';
-
-  // ---- 챔피언 보정 표 ----
-  const Z = (p.zs || []).filter(z => z.pct_raw != null);
-  if (Z.length) {
-    // 상위/하위를 섞으면 방향을 못 읽는다. '상위 N%' 하나로 통일 — 작을수록 좋다.
-    const band = q => '상위 ' + Math.max(1, Math.min(99, Math.round(100 - q))) + '%';
-    const rows = [...Z].sort((a, b) => a.pct - b.pct).map(z => {
-      const mv = z.pct - z.pct_raw;
-      const cls = Math.abs(mv) < 4 ? 'fl' : (mv > 0 ? 'up' : 'dn');
-      const am = Math.round(Math.abs(mv));
-      const arrow = am === 0 ? '' : (mv > 0 ? '▲' : '▼') + am;
-      const drv = (z.drivers || []).filter(x => x.share != null && x.n >= 5 &&
-                    Math.abs(x.share) >= .2 && (x.share < 0) === !!z.higher_better)
-                  .sort((a, b) => Math.abs(b.share) - Math.abs(a.share)).slice(0, 2);
-      const ciTxt = (z.lo != null && z.hi != null)
-        ? (() => { const a = Math.max(1, Math.min(99, Math.round(100 - z.hi)));
-                   const b = Math.max(1, Math.min(99, Math.round(100 - z.lo)));
-                   return '<span class="sub">' + Math.min(a,b) + '~' + Math.max(a,b) + '%</span>'; })()
-        : '';
-      let r = '<tr><td>' + esc(z.ko) + '</td><td>' + z.me + '</td><td class="fl">' + z.exp +
-        '</td><td class="fl">' + band(z.pct_raw) + '</td><td class="mv ' + cls + '">' +
-        band(z.pct) + ' <span style="font-size:11px">' + arrow + '</span>' + ciTxt + '</td></tr>';
-      if (drv.length && Math.abs(mv) >= 4) {
-        r += '<tr><td class="why" colspan="5">↳ ' +
-          drv.map(x => esc(x.champ) + ' ' + x.n + '판').join(' · ') +
-          ' 때문에 기대치가 ' + (mv > 0 ? '낮' : '높') + '게 잡힙니다</td></tr>';
-      }
-      return r;
-    }).join('');
-    h += '<div class="box" style="margin-top:14px">' +
-      '<h3 style="margin:0 0 4px;font-size:13px">챔피언 보정 백분위</h3>' +
-      '<p class="muted" style="margin:0 0 8px">같은 ' + esc(josa(p.role, '이라도', '라도')) +
-      ' 고르는 챔피언마다 기대 딜량·CS·시야가 ' +
-      '애초에 다릅니다. 그래서 <b>내가 고른 챔피언들의 평균</b>을 기대치로 잡고, 거기서 얼마나 ' +
-      '벗어났는지로 다시 줄을 세웠습니다. 기대치는 <b>본인 판을 통째로 뺀</b> 값이라 자기 성적이 ' +
-      '자기 기준이 되는 일은 없습니다.</p>' +
-      '<div style="overflow-x:auto"><table class="adj"><tr><th>지표</th><th>내 값</th>' +
-      '<th>챔프 기대치</th><th>보정 전</th><th>보정 후 <span style="font-weight:400">· 95% 구간</span>' +
-      '</th></tr>' + rows + '</table></div>' +
-      '<p class="muted">작은 글씨가 95% 구간입니다. 폭이 30%p를 넘으면 순위를 말할 수 없어 ' +
-      '고칠 점 문장에서 뺐습니다 — 표본이 그만큼 부족하다는 뜻입니다.</p>' +
-      '<p class="muted">' + ((p.zs[0] || {}).pop_kind === 'own'
-        ? '비교 대상은 <b>' + esc(p.name) + '님이 실제로 뛴 경기에 나온 같은 라인 선수 ' +
-          ((p.zs[0] || {}).pop || 0).toLocaleString() + '명</b>입니다(본인 제외). ' +
-          '매칭 시스템이 실력을 맞춰 넣어준 사람들이라 "같은 라인 N명 중 몇 등"이 그대로 성립합니다. ' +
-          '대부분 1판씩만 나오므로 평균만 이 집단에서 쓰고, 흩어진 정도는 라인 전체 표본에서 가져왔습니다 ' +
-          '— 작은 집단에서 산포를 직접 재면 0으로 무너져 사소한 차이가 "하위 1%"로 튑니다.'
-        : '비교 대상은 이 데이터에 등장한 같은 라인 전원' +
-          ((p.zs[0] || {}).pop ? ' ' + p.zs[0].pop.toLocaleString() + '명' : '') +
-          '입니다(본인 제외). 1~2판만 나온 사람이 대부분이라 그 표본 잡음은 분산분해로 걷어냈습니다.') +
-      '</p></div>';
-  }
-
-  const v = document.getElementById('playerView');
-  v.innerHTML = h;
-  v.querySelector('#back').onclick = () => { location.hash = ''; };
-  v.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
-    const el = document.getElementById(b.dataset.go);
-    if (el) el.scrollIntoView({behavior: 'smooth', block: 'start'});
-  });
-
-  const ids = ['fC', 'fR', 'fO', 'fE', 'fA'], keys = ['c', 'r', 'o', 'ej', 'aj'];
-  const out = document.getElementById('qout');
-  function runQuery() {
-    if (!out) return;
-    const want = ids.map(i => (document.getElementById(i) || {}).value || '');
-    const rows = (p.games || []).filter(g => keys.every((k, i) => !want[i] || g[k] === want[i]));
-    const n = rows.length, w = rows.reduce((s, g) => s + g.w, 0);
-    const wr = n ? (w / n * 100).toFixed(1) : '—';
-    const note = n === 0 ? '<span class="muted">조건에 맞는 경기가 없습니다.</span>'
-      : (n < 5 ? '<span class="muted">표본이 ' + n + '판뿐이라 승률은 참고만 하세요.</span>' : '');
-    out.innerHTML = '<div class="qres"><span class="big" style="color:' +
-      (n && w / n >= 0.5 ? 'var(--good)' : 'var(--bad)') + '">' + wr + '%</span>' +
-      '<span>' + n + '판 · ' + w + '승 ' + (n - w) + '패</span>' + note + '</div>' +
-      (n ? '<div class="glist"><div class="grow hd"><span>결과</span><span>내 챔프</span>' +
-        '<span>맞라인</span><span>적 정글</span><span>날짜</span></div>' +
-        rows.slice(0, 60).map(g => '<div class="grow">' +
-          '<span class="' + (g.w ? 'tagw' : 'tagl') + '">' + (g.w ? '승' : '패') + '</span>' +
-          '<span>' + esc(g.c) + '</span><span>' + esc(g.o || '—') + '</span>' +
-          '<span>' + esc(g.ej || '—') + '</span><span class="muted">' + esc(g.d) + '</span>' +
-          '</div>').join('') +
-        (n > 60 ? '<p class="muted">최근 60판만 표시</p>' : '') + '</div>' : '');
-  }
-  ids.forEach(i => { const el = document.getElementById(i); if (el) el.onchange = runQuery; });
-  const qr = document.getElementById('qReset');
-  if (qr) qr.onclick = () => { ids.forEach(i => { const e = document.getElementById(i);
-    if (e) e.value = ''; }); runQuery(); };
-  runQuery();
-
-  // 명예의 전당 카드 클릭 → 같은 날짜 경기로 스크롤 + 강조
-  v.querySelectorAll('.rec').forEach(card => {
-    const when = (card.querySelector('[data-when]') || {}).dataset?.when;
-    if (!when) return;
-    const hit = (p.recent || []).find(g => g.d === when);
-    if (!hit) return;                    // 최근 목록에 없는 옛 기록은 클릭 대상이 아니다
-    card.style.cursor = 'pointer';
-    card.title = '이 경기로 이동';
-    card.onclick = () => {
-      const el = document.getElementById('m_' + hit.id);
-      if (!el) return;
-      v.querySelectorAll('.mrow.hl').forEach(x => x.classList.remove('hl'));
-      el.classList.add('hl');
-      el.scrollIntoView({behavior: 'smooth', block: 'center'});
-    };
-  });
-
-  const lb = document.getElementById('liveBtn'), lo = document.getElementById('liveOut');
-  if (lb) lb.onclick = async () => {
-    lb.disabled = true; lb.textContent = '불러오는 중…';
-    lo.innerHTML = '';
-    try {
-      const q = '?name=' + encodeURIComponent(p.name) + '&tag=' + encodeURIComponent(p.tag);
-      const res = await fetch('/api/recent' + q);
-      const j = await res.json();
-      if (j.error) {
-        lo.innerHTML = '<p class="muted" style="color:var(--bad)">' + esc(j.error) + '</p>';
-      } else if (!(j.games || []).length) {
-        lo.innerHTML = '<p class="muted">최근 솔로랭크 경기가 없습니다.</p>';
-      } else {
-        lo.innerHTML = j.games.map(g => {
-          const when = new Date(g.playedAt);
-          const ago = Math.max(0, Math.round((Date.now() - when.getTime()) / 3600000));
-          return '<div class="lgame"><div class="lt">' +
-            '<span class="' + (g.win ? 'tagw' : 'tagl') + '">' + (g.win ? '승리' : '패배') + '</span>' +
-            '<b>' + esc(kch(g.champion)) + '</b>' +
-            '<span class="muted">' + esc(POS[g.position] || g.position || '') +
-            (g.opponent ? ' · vs ' + esc(kch(g.opponent)) : '') +
-            (g.enemyJungler ? ' · 적정글 ' + esc(kch(g.enemyJungler)) : '') +
-            '</span><span class="muted">' + (ago < 24 ? ago + '시간 전' : when.toLocaleDateString('ko-KR')) +
-            ' · ' + g.durationMin + '분</span></div>' +
-            '<div class="lstats"><span>KDA <b>' + esc(g.kda) + '</b></span>' +
-            '<span>CS <b>' + g.cs + '</b> (분당 ' + g.cspm + ')</span>' +
-            '<span>킬관여 <b>' + g.killParticipation + '%</b></span>' +
-            '<span>딜비중 <b>' + g.damageShare + '%</b></span>' +
-            '<span>시야 <b>' + g.visionScore + '</b></span></div></div>';
-        }).join('');
-      }
-    } catch (e) {
-      lo.innerHTML = '<p class="muted" style="color:var(--bad)">불러오지 못했습니다: ' + esc(e.message) + '</p>';
-    }
-    lb.disabled = false; lb.textContent = '다시 불러오기';
-  };
-}
-function route() {
-  const m = location.hash.match(/^#\/p\/(.+)$/);
-  const rv = document.getElementById('rosterView'), pv = document.getElementById('playerView');
-  if (m) { rv.classList.add('hidden'); pv.classList.remove('hidden'); renderPlayer(m[1]); window.scrollTo(0, 0); }
-  else { pv.classList.add('hidden'); rv.classList.remove('hidden'); }
-}
-window.addEventListener('hashchange', route);
-renderRoster(''); route();
-</script></body></html>
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>솔랭 해체 분석기</title>
+<meta name="description" content="해체하여, 지식을 습득한다. 친구들 솔로랭크 분석 — 챔피언·맞라인·오브젝트·죽음의 지도·데스 부검.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="솔랭 해체 분석기">
+<meta property="og:title" content="솔랭 해체 분석기">
+<meta property="og:description" content="해체하여, 지식을 습득한다.">
+<meta property="og:url" content="https://lol-disassembly-analyzer.pages.dev/">
+<meta property="og:image" content="https://lol-disassembly-analyzer.pages.dev/og.png?v=3">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="솔랭 해체 분석기">
+<meta name="twitter:description" content="해체하여, 지식을 습득한다.">
+<meta name="twitter:image" content="https://lol-disassembly-analyzer.pages.dev/og.png?v=3">
+<meta name="theme-color" content="#0e1420">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%94%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{--bg:#f5f3ee;--surf:#fffefb;--line:#e0dbd0;--ink:#1b2030;--ink2:#565f73;--muted:#8b93a5;
+--accent:#9a7118;--good:#2f7d55;--bad:#b3474a;--gl:#e8e3d8;--chip:#efece4}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+--bg:#0e1420;--surf:#161d2b;--line:#26304a;--ink:#e8eaf0;--ink2:#a8b0c2;--muted:#79839a;
+--accent:#c8a24a;--good:#4a9d6f;--bad:#c05a5a;--gl:#222c3e;--chip:#1e2636}}
+:root[data-theme=dark]{--bg:#0e1420;--surf:#161d2b;--line:#26304a;--ink:#e8eaf0;--ink2:#a8b0c2;
+--muted:#79839a;--accent:#c8a24a;--good:#4a9d6f;--bad:#c05a5a;--gl:#222c3e;--chip:#1e2636}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.55;
+font-family:'IBM Plex Sans KR','Malgun Gothic',system-ui,sans-serif}
+.wrap{max-width:1040px;margin:0 auto;padding:0 18px}
+header{background:var(--surf);border-bottom:1px solid var(--line);padding:26px 0 18px}
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;
+text-transform:uppercase;color:var(--accent);margin:0 0 6px}
+h1{font-family:'Chakra Petch','IBM Plex Sans KR',sans-serif;font-size:clamp(24px,4vw,36px);
+margin:0;letter-spacing:-.01em}
+.sub{color:var(--ink2);font-size:13px;margin:6px 0 0}
+#search{width:100%;margin-top:16px;padding:11px 14px;font-size:15px;border-radius:9px;
+border:1px solid var(--line);background:var(--bg);color:var(--ink);font-family:inherit}
+#search:focus{outline:2px solid var(--accent);outline-offset:1px}
+main{padding:22px 18px 50px}
+/* 첫 화면은 '사람 고르기'가 목적이라 카드를 얇게 — 지표 비교는 '전체 순위' 탭에 있다 */
+.roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(184px,1fr));gap:8px}
+/* 좁은 화면에서도 2열은 유지 — 1열이면 18명이 세로로 너무 길어진다 */
+@media(max-width:520px){.roster{grid-template-columns:repeat(2,1fr);gap:6px}
+.card{padding:8px 10px}.cn{font-size:13.5px}.wrbig{font-size:15px}.csub{font-size:11px}}
+.card{background:var(--surf);border:1px solid var(--line);border-radius:10px;padding:9px 12px;
+cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%;transition:border-color .12s}
+.card:hover,.card:focus-visible{border-color:var(--accent);outline:none}
+.cn{font-weight:600;font-size:14.5px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.cn>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.csub{margin-top:2px;font-size:11.5px;color:var(--muted);
+overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)}
+.crow{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;font-size:11.5px}
+.chip{background:var(--chip);border-radius:20px;padding:2px 9px;color:var(--ink2)}
+.wrbig{font-family:'Chakra Petch',sans-serif;font-size:16px;font-variant-numeric:tabular-nums;flex:none}
+.form{display:flex;gap:2px;margin-top:9px}
+.f{width:100%;height:5px;border-radius:2px;background:var(--bad)}
+.f.w{background:var(--good)}
+.hidden{display:none!important}
+.fbsec{border-top:1px solid var(--line);margin:38px 0 0;padding:22px 0 6px}
+.fbsec h2{margin:0 0 4px;font-size:17px}
+.fbsec>p.lead{margin:0 0 14px;font-size:13px;color:var(--ink2);line-height:1.66;max-width:62ch}
+.fbrow{display:flex;gap:9px;flex-wrap:wrap;margin:0 0 9px}
+.fbrow label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted);flex:1;min-width:150px}
+.fbsec select,.fbsec input,.fbsec textarea{padding:8px 10px;border-radius:8px;border:1px solid var(--line);
+background:var(--bg);color:var(--ink);font-family:inherit;font-size:13px;width:100%;box-sizing:border-box}
+.fbsec textarea{min-height:104px;resize:vertical;line-height:1.6}
+.fbsec select:focus,.fbsec input:focus,.fbsec textarea:focus{outline:none;border-color:var(--accent)}
+.fbfoot{display:flex;gap:11px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.fbsend{background:var(--accent);color:var(--bg);border:none;border-radius:8px;padding:9px 20px;
+font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.fbsend:hover:not(:disabled){filter:brightness(1.12)}
+.fbsend:disabled{opacity:.5;cursor:default}
+.fbalt{font-size:12px;color:var(--muted)}
+.fbalt a{color:var(--ink2)}
+.fbmsg{font-size:12.5px;margin:9px 0 0;min-height:1.2em}
+.fbmsg.ok{color:var(--good)}
+.fbmsg.err{color:var(--bad)}
+.fbcount{font-size:11px;color:var(--muted);margin-left:auto}
+.notes{margin:26px 0 0;border-top:1px solid var(--line);padding-top:16px}
+.notes>summary{cursor:pointer;font-size:13px;color:var(--ink2);list-style:none;
+display:flex;align-items:center;gap:7px;user-select:none}
+.notes>summary::-webkit-details-marker{display:none}
+.notes>summary::before{content:'▸';color:var(--muted);transition:transform .15s}
+.notes[open]>summary::before{transform:rotate(90deg)}
+.notes>summary:hover{color:var(--accent)}
+.nrel{margin:14px 0 0;padding:0 0 0 14px;border-left:2px solid var(--line)}
+.nrel h4{margin:0 0 7px;font-size:12px;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.nkind{display:inline-block;font-size:10.5px;padding:1px 7px;border-radius:20px;
+margin:0 0 5px;font-weight:600;letter-spacing:.02em}
+.nkind.add{background:rgba(74,157,111,.16);color:#4a9d6f}
+.nkind.fix{background:rgba(107,140,196,.16);color:#6b8cc4}
+.nkind.imp{background:rgba(200,162,74,.16);color:#c8a24a}
+.nkind.bad{background:rgba(192,90,90,.16);color:#c05a5a}
+.notes ul{margin:0 0 12px;padding-left:17px}
+.notes li{font-size:12.5px;line-height:1.62;color:var(--ink2);margin:0 0 4px}
+.notes li b{color:var(--ink)}
+.spark{display:flex;align-items:flex-end;gap:3px;height:78px;padding:4px 0}
+.spark .sb{flex:1;min-height:2px;background:var(--bad);opacity:.78;border-radius:2px 2px 0 0}
+.spark .sb:hover{opacity:1}
+.spx{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:2px}
+.adj{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
+.adj th{text-align:right;font-weight:600;color:var(--muted);font-size:11px;
+padding:5px 7px;border-bottom:1px solid var(--line);white-space:nowrap}
+.adj th:first-child{text-align:left}
+.adj td{padding:6px 7px;border-bottom:1px solid var(--line);text-align:right;
+font-variant-numeric:tabular-nums}
+.adj td:first-child{text-align:left;color:var(--ink)}
+.adj tr:last-child td{border-bottom:none}
+.adj .mv{font-weight:600}
+.adj .up{color:var(--good)}
+.adj .dn{color:var(--bad)}
+.adj .fl{color:var(--muted);font-weight:400}
+.adj .why{font-size:11px;color:var(--muted);text-align:left;padding-top:0;padding-bottom:8px}
+.adj .sub{display:block;color:var(--muted);font-weight:400;font-size:10.5px;line-height:1.3}
+.rctl{display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap;margin:0 0 10px}
+.rctl label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted)}
+.rctl select{padding:6px 9px;border-radius:7px;border:1px solid var(--line);background:var(--bg);
+color:var(--ink);font-family:inherit;font-size:12.5px}
+.rctl .chk{flex-direction:row;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2);
+padding-bottom:7px;cursor:pointer}
+.rgroup{grid-column:1/-1;font-size:11px;letter-spacing:.08em;color:var(--muted);
+text-transform:uppercase;padding:8px 2px 2px;border-bottom:1px solid var(--line);margin-top:4px}
+.rgroup:first-child{margin-top:0}
+.back{background:none;border:none;color:var(--accent);cursor:pointer;font:inherit;padding:0;
+margin-bottom:12px;font-size:13.5px}
+.jump{display:flex;gap:5px;overflow-x:auto;padding:9px 0;margin-bottom:14px;
+border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+.jump button{white-space:nowrap;background:var(--chip);border:1px solid transparent;color:var(--ink2);
+border-radius:20px;padding:6px 13px;font:inherit;font-size:12.5px;cursor:pointer}
+.jump button:hover,.jump button:focus-visible{border-color:var(--accent);color:var(--accent);outline:none}
+h2{font-family:'Chakra Petch','IBM Plex Sans KR',sans-serif;font-size:14px;letter-spacing:.1em;
+text-transform:uppercase;color:var(--accent);margin:26px 0 8px;padding-bottom:7px;
+border-bottom:1px solid var(--line);scroll-margin-top:52px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:1px;
+background:var(--line);border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-bottom:6px}
+.kpi{background:var(--surf);padding:10px 12px}
+.kl{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.kv{font-family:'Chakra Petch',sans-serif;font-size:21px;font-variant-numeric:tabular-nums}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.box{background:var(--surf);border:1px solid var(--line);border-radius:10px;padding:13px 15px}
+.box h3{font-size:14px;margin:0 0 9px;font-weight:600}
+.bar{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:12.5px}
+.bl{width:104px;flex:none;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bt{flex:1;height:13px;background:var(--gl);border-radius:3px;overflow:hidden}
+.bf{display:block;height:100%;border-radius:3px;background:var(--good)}  /* display 필수: span은 인라인이라 width가 무시돼 막대가 안 그려진다 */
+.bf.lo{background:var(--bad)}
+.bf.neu{background:var(--muted);opacity:.55}
+.bf.un{opacity:.38}  /* 표본이 적어 확신 없음 — 방향(색)은 유지하고 옅게만 */
+.bv{width:74px;flex:none;text-align:right;font-family:'IBM Plex Mono',monospace;
+font-size:11.5px;font-variant-numeric:tabular-nums}
+.bv i{color:var(--muted);font-style:normal;font-size:10.5px}
+.fb{background:var(--surf);border:1px solid var(--line);border-left:3px solid var(--accent);
+border-radius:8px;padding:11px 14px;margin:7px 0;font-size:13.5px}
+.fb b{color:var(--accent)}
+.muted{color:var(--muted);font-size:12px}
+.updated{font-size:12px;color:var(--ink2);margin:10px 0 0;display:flex;gap:8px;align-items:center}
+.themebtn{position:absolute;top:22px;right:18px;background:var(--chip);border:1px solid var(--line);
+color:var(--ink2);border-radius:20px;padding:6px 13px;font:inherit;font-size:12.5px;cursor:pointer;
+display:flex;align-items:center;gap:6px}
+.themebtn:hover,.themebtn:focus-visible{border-color:var(--accent);color:var(--accent);outline:none}
+header{position:relative}
+@media(max-width:520px){.themebtn{top:14px;right:14px;padding:5px 10px;font-size:11.5px}}
+.updated .dot{width:7px;height:7px;border-radius:50%;background:var(--good);flex:none}
+.updated .dot.stale{background:var(--bad)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.filters label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted)}
+.filters select{padding:7px 9px;border-radius:7px;border:1px solid var(--line);
+background:var(--bg);color:var(--ink);font-family:inherit;font-size:13px;min-width:118px}
+.filters select:focus{outline:2px solid var(--accent);outline-offset:1px}
+.qres{display:flex;gap:18px;align-items:baseline;flex-wrap:wrap;margin:10px 0}
+.qres .big{font-family:'Chakra Petch',sans-serif;font-size:32px;font-variant-numeric:tabular-nums}
+.glist{max-height:280px;overflow-y:auto;margin-top:8px}
+.grow{display:grid;grid-template-columns:52px 1fr 1fr 1fr 62px;gap:6px;padding:5px 4px;
+font-size:12px;border-bottom:1px solid var(--line);align-items:center}
+.grow.hd{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;
+position:sticky;top:0;background:var(--surf)}
+.tagw{color:var(--good);font-weight:600}.tagl{color:var(--bad);font-weight:600}
+.livebtn{background:var(--accent);color:#12161f;border:none;border-radius:8px;padding:9px 16px;
+font:inherit;font-weight:600;font-size:13px;cursor:pointer}
+.livebtn:hover,.livebtn:focus-visible{filter:brightness(1.08);outline:none}
+.livebtn[disabled]{opacity:.55;cursor:default}
+.lgame{border:1px solid var(--line);border-radius:9px;padding:11px 13px;margin-top:8px}
+.lgame .lt{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap}
+.lstats{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--ink2);margin-top:6px}
+.lstats b{color:var(--ink);font-family:'IBM Plex Mono',monospace}
+.hof{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px}
+.rec{background:var(--surf);border:1px solid var(--line);border-radius:9px;padding:10px 12px}
+.rec .rl{font-size:11px;color:var(--muted)}
+.rec .rv{font-family:'Chakra Petch',sans-serif;font-size:22px;font-variant-numeric:tabular-nums}
+.rec .rm{font-size:11px;color:var(--ink2)}
+.rec.hero{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.rec.hero .rv{color:var(--accent)}
+.ld{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:6px 0 2px}
+.ldc{background:var(--surf);border:1px solid var(--line);border-radius:9px;padding:10px 12px;text-align:center}
+.ldc .v{font-family:'Chakra Petch',sans-serif;font-size:24px;font-variant-numeric:tabular-nums}
+.ldc .k{font-size:11px;color:var(--muted)}
+.two{display:flex;gap:22px;flex-wrap:wrap}
+.two .v{font-family:'Chakra Petch',sans-serif;font-size:30px;font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:2px;margin:14px 0 0;border-bottom:1px solid var(--line)}
+.tabs button{background:none;border:none;border-bottom:2px solid transparent;color:var(--ink2);
+padding:9px 15px;font:inherit;font-size:14px;cursor:pointer}
+.tabs button[aria-selected=true]{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.lbctl{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin:14px 0 10px}
+.lbctl label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted)}
+.lbctl select{padding:7px 9px;border-radius:7px;border:1px solid var(--line);background:var(--bg);
+color:var(--ink);font-family:inherit;font-size:13px}
+.lbctl .chk{flex-direction:row;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2);padding-bottom:8px}
+.lb{width:100%;border-collapse:collapse;font-size:13px}
+.lb th{text-align:left;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;
+color:var(--muted);padding:7px 8px;border-bottom:1px solid var(--line)}
+.lb td{padding:8px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.lb tr:hover td{background:var(--chip)}
+.lb .rk{width:34px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+.lb .nm{cursor:pointer;font-weight:500}
+.lbtabs{display:flex;gap:4px;overflow-x:auto;margin:0 0 12px;padding-bottom:2px;
+-webkit-overflow-scrolling:touch}
+.lbtabs button{white-space:nowrap;background:var(--chip);border:1px solid transparent;
+color:var(--ink2);border-radius:20px;padding:6px 14px;font:inherit;font-size:12.5px;cursor:pointer}
+.lbtabs button:hover{color:var(--accent)}
+.lbtabs button[aria-selected="true"]{background:var(--accent);color:var(--bg);font-weight:600}
+.lb .ln{color:var(--ink2);font-size:12px;white-space:nowrap}
+.lb .ln small{color:var(--muted);font-size:10.5px}
+.lb .val{white-space:nowrap}
+.lb .sub{color:var(--muted);font-weight:400;font-size:11px;display:block;line-height:1.35}
+.h2grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+.h2h4{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+margin:0 0 6px;font-weight:600}
+.h2t{width:100%;border-collapse:collapse;font-size:12.5px}
+.h2t td{padding:6px 4px;border-bottom:1px solid var(--line);vertical-align:middle}
+.h2t tr:last-child td{border-bottom:none}
+.h2t .who{color:var(--ink)}
+.h2t .amp{color:var(--muted);font-size:11px;padding:0 1px}
+.h2t .mid{width:34%;min-width:60px}
+.h2t .res{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.h2t .sub2{display:block;color:var(--muted);font-size:10.5px;line-height:1.3}
+.qmore{margin:-4px 0 10px}
+.qmore>summary{cursor:pointer;font-size:12px;color:var(--muted);list-style:none;
+display:inline-flex;align-items:center;gap:6px;user-select:none;padding:4px 0}
+.qmore>summary::-webkit-details-marker{display:none}
+.qmore>summary::before{content:'+';font-weight:600}
+.qmore[open]>summary::before{content:'−'}
+.qmore>summary:hover{color:var(--accent)}
+.qreset{align-self:flex-end;margin-bottom:1px;background:var(--chip);border:1px solid var(--line);
+color:var(--ink2);border-radius:7px;padding:7px 12px;font:inherit;font-size:12.5px;cursor:pointer}
+.qreset:hover{border-color:var(--accent);color:var(--accent)}
+.h2bar{display:block;height:6px;border-radius:3px;background:var(--bad);opacity:.75;overflow:hidden}
+.h2bar i{display:block;height:100%;background:var(--good)}
+@media(max-width:560px){.h2t{font-size:11.5px}.h2t .mid{width:26%}}
+@media(max-width:560px){
+  .lbtabs button{padding:6px 9px;font-size:12px}
+  .lb{font-size:12px}
+  .lb td,.lb th{padding:7px 5px}
+  .lb .rk{width:26px}
+  .lb .ln{font-size:11px}
+  .lb .sub{font-size:10px}
+}
+.lb .nm:hover{color:var(--accent)}
+.lb .val{text-align:right;font-family:'IBM Plex Mono',monospace;font-weight:600}
+.lbwhy{margin:10px 0 0;padding-top:10px;border-top:1px solid var(--line)}
+.lbwhy>summary{cursor:pointer;font-size:12px;color:var(--muted);list-style:none;
+display:inline-flex;gap:6px;user-select:none}
+.lbwhy>summary::-webkit-details-marker{display:none}
+.lbwhy>summary::before{content:'?';font-weight:700;color:var(--accent)}
+.lbwhy>summary:hover{color:var(--accent)}
+.lbwhy p{margin:8px 0 0;font-size:12px;color:var(--muted);line-height:1.7}
+/* 아군/적을 좌우로 나누면서 진영 배지 칸이 없어졌다. 2칸으로 맞춘다 —
+   3칸으로 두면 챔피언 이름이 40px 칸에 눌려 들어간다. */
+.effrow{display:grid;grid-template-columns:1fr 74px;gap:8px;align-items:center;
+padding:6px 2px;border-bottom:1px solid var(--line);font-size:12.5px}
+.effrow:last-child{border-bottom:none}
+.effrow .sd{font-size:10.5px;color:var(--muted)}
+.effrow.dim{opacity:.5}
+.effrow .df{text-align:right;font-family:'IBM Plex Mono',monospace;font-weight:600}
+.mrow{display:grid;grid-template-columns:34px 1fr 74px 58px 50px;gap:7px;align-items:center;
+padding:6px 3px;border-bottom:1px solid var(--line);font-size:12.5px}
+.mrow.hl{background:var(--chip)}
+.h2h{font-size:13px;line-height:1.75}
+.h2h b{color:var(--accent)}
+.streak{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.sbig{font-family:'Chakra Petch',sans-serif;font-size:30px;line-height:1}
+.grass{display:flex;gap:2px;flex-wrap:wrap;margin-top:8px}
+.gd{width:9px;height:9px;border-radius:2px;background:var(--bad)}
+.gd.w{background:var(--good)}
+.stack{display:flex;height:22px;border-radius:5px;overflow:hidden;margin:8px 0}
+.stack div{font-size:10px;color:#fff;display:flex;align-items:center;justify-content:center}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2)}
+.legend i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:4px}
+.maps{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:560px){.maps{grid-template-columns:1fr}}
+footer{border-top:1px solid var(--line);padding:16px 18px 40px;color:var(--muted);font-size:11.5px}
+</style></head><body>
+<header><button class="themebtn" id="themeBtn" type="button" aria-label="화면 테마 전환"><span id="themeIcon">🌓</span><span id="themeLabel">자동</span></button><div class="wrap">
+  <p class="eyebrow">SOLO QUEUE ANALYTICS</p>
+  <h1><a href="#" id="homeLink" style="color:inherit;text-decoration:none">솔랭 해체 분석기</a></h1>
+  <p class="sub" id="sub"></p>
+  <p class="updated" id="updated"></p>
+  <input id="search" type="search" placeholder="닉네임 검색 (초성도 됩니다 — 예: ㅇㄱㅅ)" autocomplete="off">
+</div></header>
+<main class="wrap">
+  <div id="rosterView">
+    <div class="tabs" role="tablist">
+      <button id="tabList" role="tab" aria-selected="true">닉네임 목록</button>
+      <button id="tabRank" role="tab" aria-selected="false">전체 순위</button>
+    </div>
+    <div id="paneRank" class="hidden">
+      <div class="lbctl">
+        <label>기준<select id="lbMetric"></select></label>
+      </div>
+      <div class="lbtabs" id="lbTabs" role="tablist"></div>
+      <div id="lbOut"></div>
+      <!-- p 가 아니라 div — 안에 details/p 를 넣으면 p 는 브라우저가 강제로 닫는다 -->
+      <div class="muted" id="lbNote" style="font-size:12px;line-height:1.7;margin:10px 0 0"></div>
+      <details class="lbwhy">
+        <summary>승률이 왜 순위에 없나요</summary>
+        <p><b>승률 · 던진 판 · 뒤집은 판은 순위에서 뺐습니다.</b>
+        같은 사람 판을 무작위 반으로 갈라 두 번 순위를 매겨보면 두 순위의 상관이
+        각각 <b>−0.30 · −0.20 · +0.01</b> 로 나옵니다 — 앞쪽 절반에서 잘 나온 사람이
+        뒤쪽 절반에서 오히려 못 나온다는 뜻이고, 순위로 팔 수 있는 숫자가 아닙니다.
+        세 값 모두 각자의 페이지에는 신뢰구간과 함께 그대로 있습니다.</p>
+      </details>
+      <div id="h2hOut" style="margin-top:18px"></div>
+    </div>
+    <div id="paneList">
+      <div class="rctl">
+        <label>정렬<select id="rSort">
+          <option value="name">가나다</option>
+          <option value="n">판수 많은 순</option>
+          <option value="form">최근 폼</option>
+        </select></label>
+        <label class="chk"><input type="checkbox" id="rGroup"> 라인별로 묶기</label>
+      </div>
+      <div class="roster" id="roster"></div>
+      <details class="notes" id="notes"></details>
+    <p class="muted" id="empty" style="display:none">검색 결과가 없습니다.</p></div></div>
+  <div id="playerView" class="hidden"></div>
+  <section class="fbsec" id="fbsec">
+    <h2>피드백</h2>
+    <p class="lead">숫자가 이상하거나, 이런 걸 보고 싶다거나, 그냥 할 말이 있으면 남겨주세요.</p>
+    <div class="fbrow">
+      <label>누구<select id="fbWho"></select></label>
+      <label>무슨 얘기<select id="fbKind">
+        <option>숫자가 이상함</option>
+        <option>버그</option>
+        <option>이런 걸 보고 싶다</option>
+        <option>기타</option>
+      </select></label>
+    </div>
+    <label style="font-size:11px;color:var(--muted)">내용
+      <textarea id="fbBody" maxlength="2000"
+        placeholder="예) 내 맞라인 승률에 원딜로 간 판이 섞인 것 같습니다. 라인 탭을 켜도 그대로인데..."></textarea>
+    </label>
+    <div class="fbfoot">
+      <button class="fbsend" id="fbSend" type="button">보내기</button>
+      <span class="fbalt" id="fbAlt"></span>
+      <span class="fbcount" id="fbCount">0 / 2000</span>
+    </div>
+    <p class="fbmsg" id="fbMsg"></p>
+  </section>
+</main>
+<footer class="wrap"><span id="foot"></span> · Riot Match-V5 / Timeline-V5 기반 ·
+표본이 적은 항목은 신뢰구간을 함께 봐주세요.</footer>
+<script id="DATA" type="application/json">__DATA__</script>
+<script>
+const D = JSON.parse(document.getElementById('DATA').textContent);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// ---------- 테마: 자동(시스템) → 라이트 → 다크 순환 ----------
+(function () {
+  const MODES = [
+    {k: 'auto',  icon: '🌓', label: '자동'},
+    {k: 'light', icon: '☀️', label: '라이트'},
+    {k: 'dark',  icon: '🌙', label: '다크'},
+  ];
+  const btn = document.getElementById('themeBtn');
+  const ic = document.getElementById('themeIcon'), lb = document.getElementById('themeLabel');
+  let cur = 'auto';
+  try { cur = localStorage.getItem('theme') || 'auto'; } catch (e) {}
+  function apply(k) {
+    cur = MODES.some(m => m.k === k) ? k : 'auto';
+    const root = document.documentElement;
+    if (cur === 'auto') root.removeAttribute('data-theme');
+    else root.setAttribute('data-theme', cur);
+    const m = MODES.find(x => x.k === cur);
+    if (ic) ic.textContent = m.icon;
+    if (lb) lb.textContent = m.label;
+    try { localStorage.setItem('theme', cur); } catch (e) {}
+  }
+  apply(cur);
+  if (btn) btn.onclick = () => {
+    const i = MODES.findIndex(m => m.k === cur);
+    apply(MODES[(i + 1) % MODES.length].k);
+  };
+})();
+const CHO = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const initials = s => [...s].map(c => {
+  const i = c.charCodeAt(0) - 0xAC00;
+  return (i >= 0 && i <= 11171) ? CHO[Math.floor(i / 588)] : c;
+}).join('');
+const col = new Intl.Collator('ko', {numeric: true, sensitivity: 'base'});
+const CH = D.champ_ko || {};
+// Riot 은 'FiddleSticks', Data Dragon 은 'Fiddlesticks' — 대소문자가 다르다
+const CHL = Object.fromEntries(Object.entries(CH).map(([k, v]) => [k.toLowerCase(), v]));
+const kch = c => CH[c] || CHL[String(c || '').toLowerCase()] || c;
+// 한글 받침 유무 -> 조사 선택. '정글라도'/'미드이라도' 같은 게 안 나오게.
+const batchim = w => { const s = String(w || ''); if (!s) return false;
+  const c = s.charCodeAt(s.length - 1) - 0xAC00;
+  return c >= 0 && c <= 11171 && (c % 28) !== 0; };
+const josa = (w, withB, noB) => String(w || '') + (batchim(w) ? withB : noB);
+const POS = {TOP: '탑', JUNGLE: '정글', MIDDLE: '미드', BOTTOM: '원딜', UTILITY: '서포터'};
+D.players.sort((a, b) => col.compare(a.name, b.name));
+document.getElementById('sub').textContent =
+  D.players.length + '명 · ' + D.note;
+document.getElementById('foot').textContent = '생성 ' + D.built;
+(function () {
+  const el = document.getElementById('updated');
+  if (!el) return;
+  const st = D.status || {};
+  const when = st.last_success || D.built;
+  let stale = false;
+  try {
+    const t = new Date(when.replace(' ', 'T'));
+    stale = (Date.now() - t.getTime()) > 36 * 3600 * 1000;
+  } catch (e) {}
+  const failed = st.ok === false;
+  el.innerHTML = '<span class="dot' + (stale || failed ? ' stale' : '') + '"></span>' +
+    '마지막 갱신 <b style="color:var(--ink)">' + esc(when) + '</b>' +
+    (failed ? ' <span style="color:var(--bad)">· 최근 갱신 실패: ' + esc(st.detail || '') + '</span>'
+            : (stale ? ' <span style="color:var(--bad)">· 데이터가 오래됐습니다</span>' : ''));
+})();
+
+const rosterEl = document.getElementById('roster');
+
+function cardHTML(p) {
+  // 이름·승률·라인·판수만 남긴다. 태그/KDA/관여/최근폼은 마우스를 올리면 보이고,
+  // 상세는 카드를 누르면 나오므로 첫 화면에 다 펼칠 이유가 없다(18명이면 그게 난잡함의 원인).
+  const w = p.form.slice(-10).filter(Boolean).length, g = p.form.slice(-10).length;
+  const tip = p.name + '#' + p.tag + ' · ' + p.role + ' · ' + p.n + '판 · 승률 ' + p.wr +
+    '% · KDA ' + p.kda + ' · 관여 ' + p.kp + '%' + (g ? ' · 최근 ' + g + '판 ' + w + '승' : '');
+  return '<button class="card" data-id="' + p.id + '" title="' + esc(tip) + '">' +
+    '<div class="cn"><span>' + esc(p.name) + '</span>' +
+      '<span class="wrbig" style="color:' + (p.wr >= 50 ? 'var(--good)' : 'var(--bad)') + '">' +
+      p.wr + '%</span></div>' +
+    '<div class="csub">' + esc(p.role) + ' · ' + p.n + '판</div></button>';
+}
+// ---------- 피드백 창구 ----------
+(function () {
+  var REPO = "https://github.com/molaaaaaaa/lol-analytics";
+  var who = document.getElementById("fbWho");
+  var kind = document.getElementById("fbKind");
+  var body = document.getElementById("fbBody");
+  var send = document.getElementById("fbSend");
+  var msg = document.getElementById("fbMsg");
+  var alt = document.getElementById("fbAlt");
+  var cnt = document.getElementById("fbCount");
+  if (!who || !send) return;
+
+  // 이름 목록 — 로스터에서 고르거나 그냥 두면 익명
+  var opts = ['<option value="">익명으로</option>'];
+  (D.players || []).forEach(function (p) {
+    opts.push('<option value="' + esc(p.name) + '">' + esc(p.name) + "</option>");
+  });
+  who.innerHTML = opts.join("");
+  try {
+    var last = localStorage.getItem("fbWho");
+    if (last) who.value = last;
+  } catch (e) {}
+  who.onchange = function () {
+    try { localStorage.setItem("fbWho", who.value); } catch (e) {}
+  };
+
+  body.oninput = function () {
+    cnt.textContent = body.value.length + " / 2000";
+  };
+
+  // 지금 보고 있는 화면 — 어느 사람 페이지에서 남겼는지 같이 보낸다
+  function where() {
+    var m = (location.hash || "").match(/#\/p\/([a-f0-9]+)/);
+    if (!m) return "목록";
+    var p = (D.players || []).filter(function (x) { return x.id === m[1]; })[0];
+    return p ? p.name + " 페이지" : "개인 페이지";
+  }
+
+  function issueURL() {
+    var t = "[" + kind.value + "] " + (body.value.split("\n")[0] || "").slice(0, 60);
+    var b = body.value + "\n\n---\n화면: " + where() + "\n남긴이: " + (who.value || "익명");
+    return REPO + "/issues/new?title=" + encodeURIComponent(t) + "&body=" + encodeURIComponent(b);
+  }
+  function showAlt(label) {
+    alt.innerHTML = label + ' <a href="' + issueURL() + '" target="_blank" rel="noopener">GitHub Issues에 남기기</a>';
+  }
+  showAlt("또는");
+
+  send.onclick = function () {
+    var t = body.value.trim();
+    if (t.length < 5) {
+      msg.className = "fbmsg err";
+      msg.textContent = "내용을 다섯 글자 이상 적어주세요.";
+      return;
+    }
+    send.disabled = true;
+    msg.className = "fbmsg";
+    msg.textContent = "보내는 중...";
+    fetch("/api/feedback", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ who: who.value, kind: kind.value, body: t, page: where() }),
+    })
+      .then(function (r) { return r.json().then(function (j) { return { s: r.status, j: j }; }); })
+      .then(function (r) {
+        if (r.j && r.j.ok) {
+          msg.className = "fbmsg ok";
+          msg.textContent = "고맙습니다. 잘 받았습니다.";
+          body.value = "";
+          cnt.textContent = "0 / 2000";
+          send.disabled = false;
+          return;
+        }
+        msg.className = "fbmsg err";
+        msg.textContent = (r.j && r.j.error) || "전송에 실패했습니다.";
+        send.disabled = false;
+        if (r.j && r.j.fallback === "github") showAlt("대신");
+      })
+      .catch(function () {
+        msg.className = "fbmsg err";
+        msg.textContent = "전송에 실패했습니다. 아래 링크로 남겨주세요.";
+        send.disabled = false;
+        showAlt("대신");
+      });
+  };
+})();
+
+// ---------- 패치 노트 (원본: 저장소의 PATCHNOTES.md) ----------
+(function () {
+  const el = document.getElementById('notes');
+  const N = D.notes || [];
+  if (!el || !N.length) { if (el) el.remove(); return; }
+  const cls = k => k === '추가' ? 'add' : k === '수정' ? 'fix' : k === '사고' ? 'bad' : 'imp';
+  // 굵게(**...**)만 허용. 나머지는 전부 이스케이프한다.
+  const md = t => esc(t).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+                        .replace(/`([^`]+)`/g, '<code>$1</code>');
+  el.innerHTML = '<summary>패치 노트 · 최근 갱신 ' + esc(N[0].date) + '</summary>' +
+    N.map(r => '<div class="nrel"><h4>' + esc(r.date) + '</h4>' +
+      r.groups.map(gp => '<div><span class="nkind ' + cls(gp.kind) + '">' + esc(gp.kind) +
+        '</span></div><ul>' + gp.items.map(i => '<li>' + md(i) + '</li>').join('') + '</ul>'
+      ).join('') + '</div>').join('');
+})();
+
+const ROLE_ORDER = ['탑', '정글', '미드', '원딜', '서포터', '미상'];
+function formScore(p) {
+  const f = (p.form || []).slice(-10);
+  return f.length ? f.reduce((a, b) => a + b, 0) / f.length : 0;
+}
+function renderRoster(q) {
+  q = (q || '').trim().toLowerCase();
+  const qi = initials(q);
+  let list = D.players.filter(p => {
+    if (!q) return true;
+    const n = p.name.toLowerCase(), t = (p.tag || '').toLowerCase();
+    return n.includes(q) || t.includes(q) || initials(n).includes(qi);
+  });
+  const sort = (document.getElementById('rSort') || {}).value || 'name';
+  const cmp = {
+    n: (a, b) => b.n - a.n,
+    name: (a, b) => col.compare(a.name, b.name),
+    wr: (a, b) => b.wr - a.wr,
+    form: (a, b) => formScore(b) - formScore(a),
+  }[sort] || ((a, b) => col.compare(a.name, b.name));
+  list = [...list].sort(cmp);
+
+  if ((document.getElementById('rGroup') || {}).checked) {
+    const by = {};
+    list.forEach(p => { (by[p.role] = by[p.role] || []).push(p); });
+    const order = ROLE_ORDER.filter(r => by[r])
+      .concat(Object.keys(by).filter(r => !ROLE_ORDER.includes(r)));
+    rosterEl.innerHTML = order.map(r =>
+      '<div class="rgroup">' + esc(r) + ' ' + by[r].length + '명</div>' +
+      by[r].map(cardHTML).join('')).join('');
+  } else {
+    rosterEl.innerHTML = list.map(cardHTML).join('');
+  }
+  document.getElementById('empty').style.display = list.length ? 'none' : 'block';
+}
+['rSort', 'rGroup'].forEach(id => {
+  const e = document.getElementById(id);
+  if (e) e.onchange = () => renderRoster(document.getElementById('search').value);
+});
+// ---------- 전체 순위 ----------
+// 지표마다 '분모'가 다르다. 던진 판의 분모는 총 판수가 아니라 15분에 앞섰던 판수다.
+// nf 를 안 주면 판수 칸이 총 판수를 찍어, 표본 20판짜리가 '47판'으로 보여 순위를
+// 실제보다 믿음직하게 만든다. (aheadN/behindN 은 개인 페이지 오브젝트 상자에서 쓴다.)
+// 분모는 생성기가 cb.ahead_n / cb.behind_n 으로 직접 준다.
+// 예전에는 by_lead15 라벨에 '우세'/'열세' 가 들어있는지로 찾았는데, 버킷을 0.5k 단위로
+// 쪼개며 라벨을 바꾸자 조용히 undefined 가 됐다 — 라벨은 계약이 될 수 없다.
+const aheadN  = p => (p.cb||{}).ahead_n;
+const behindN = p => (p.cb||{}).behind_n;
+// 반분신뢰도 — scripts/metric_reliability.py 로 400회 측정한 값.
+// 같은 사람 판을 무작위 반씩 갈라 두 순위를 만들었을 때의 Spearman 상관이다.
+// 승률(-0.299) · 던진 판(-0.199) · 뒤집은 판(+0.012) 은 신호가 없어 아예 뺐다.
+const REL = {gpm:.876, skpg:.869, cspm:.846, dpg:.815, kp:.803, dpm:.802, vs:.756,
+             kda:.697, sdpg:.659, ldc:.650, snet:.624, dead:.581, ldg:.382, fb:.310};
+const METRICS = [
+  // 위쪽일수록 잘 재현되는 지표다(REL 참고). 분당 골드·판당 데스는 측정만 해놓고
+  // 순위표에 안 넣고 있었다 — 재현성 0.876 / 0.815 로 가장 믿을 만한 둘이다.
+  {k:'gpm', l:'분당 골드', f:p=>p.gpm, u:'', hi:true, rf:r=>r.gpm},
+  {k:'dpg', l:'판당 데스(낮을수록 좋음)', f:p=>p.dpg, u:'', hi:false, dp:2, rf:r=>r.dpg},
+  {k:'kda', l:'KDA (킬+어시 ÷ 데스 합계)', f:p=>p.kda, u:'', hi:true, dp:2, rf:r=>r.kda},
+  {k:'kp', l:'킬 관여율', f:p=>p.kp, u:'%', hi:true, rf:r=>r.kp},
+  {k:'cspm', l:'분당 CS', f:p=>p.cspm, u:'', hi:true, rf:r=>r.cspm},
+  {k:'dpm', l:'분당 딜', f:p=>p.dpm, u:'', hi:true, rf:r=>r.dpm},
+  {k:'vs', l:'시야 점수', f:p=>p.vs, u:'', hi:true, rf:r=>r.vs},
+  {k:'ldg', l:'15분 골드 격차', f:p=>((p.ld||{}).m15||{}).gold, u:'G', hi:true},
+  {k:'ldc', l:'15분 CS 격차', f:p=>((p.ld||{}).m15||{}).cs, u:'', hi:true},
+  {k:'dead', l:'죽어 있던 시간 — 2~20분, 최근 150판 (낮을수록 좋음)',
+   f:p=>((p.fun||{}).dead||{}).pct, u:'%', hi:false, nf:p=>((p.fun||{}).dead||{}).n},
+  {k:'streak', l:'최장 연승 (운으로 나올 기대치 대비)', u:'', hi:true,
+   f:p=>{const t=((p.fun||{}).streak||{}); return (t.win==null||t.expected==null)? null : t.win-t.expected;},
+   fmt:(v,p)=>{const t=((p.fun||{}).streak||{});
+     return (v>0?'+':'')+(Math.round(v*10)/10)+
+       '<span class="sub">'+t.win+'연승 · 기대 '+t.expected+'</span>';}},
+  // 명예의 전당에서 퍼블 카드를 뺀 뒤로 그 카드를 읽던 이 지표가 전원 0% 가 됐다.
+  // 생성기가 내려주는 fb_rate 를 직접 쓴다. 한 경기에 한 번 · 참가자 10명이라
+  // 무작위여도 10% 가 나오므로 그 기준선을 지표 이름에 박아 둔다.
+  {k:'fb', l:'판당 퍼스트블러드 (무작위여도 10%)', u:'%', hi:true, dp:1,
+   f:p=>p.fb_rate},
+  {k:'sdpg', l:'판당 피솔킬(낮을수록 좋음)', f:p=>(p.sd||{}).per_game, u:'', hi:false, dp:2, rf:r=>r.sdpg},
+  {k:'skpg', l:'판당 솔킬', f:p=>(p.sd||{}).given_per_game, u:'', hi:true, dp:2, rf:r=>r.skpg},
+  {k:'snet', l:'솔킬 수지 (준 − 당한)', f:p=>(p.sd||{}).net_per_game, u:'', hi:true, dp:2, rf:r=>r.snet},
+];
+// 펜타킬은 19명 중 18명이 0회라 순위가 성립하지 않아 뺐다(개인 명예의 전당에는 남아 있다).
+const ROLE_SENSITIVE = new Set(['cspm','dpm','vs','ldg','ldc','kp','kda','fb','dead',
+                                'gpm','dpg','sdpg','skpg','snet']);
+const mSel = document.getElementById('lbMetric');
+METRICS.forEach(m=>{const o=document.createElement('option');o.value=m.k;
+  o.textContent = m.l + (REL[m.k] != null && REL[m.k] < 0.5 ? '  (신뢰도 낮음)' : '');
+  mSel.appendChild(o);});
+// 라인 탭 — 기본이 '전체'. 체크박스+셀렉트 두 단계였더니 지금 무엇이 켜져 있는지 안 보였다.
+const ROLE_TABS = ['전체','탑','정글','미드','원딜','서포터'];
+let lbRole = '전체';
+// 제목을 눌러도 목록으로 — '← 전체 목록' 버튼만으로는 돌아갈 길이 하나뿐이었다.
+(function () {
+  const a = document.getElementById('homeLink');
+  if (a) a.onclick = e => { e.preventDefault(); location.hash = '';
+    window.scrollTo({top: 0, behavior: 'smooth'}); };
+})();
+const lbTabs = document.getElementById('lbTabs');
+ROLE_TABS.forEach(r=>{
+  const n = r==='전체' ? D.players.length : D.players.filter(p=>p.role===r).length;
+  if (r!=='전체' && !n) return;
+  const b=document.createElement('button');
+  b.type='button'; b.dataset.role=r; b.setAttribute('role','tab');
+  b.setAttribute('aria-selected', String(r===lbRole));
+  b.innerHTML = esc(r)+' <span style="opacity:.65;font-size:11px">'+n+'</span>';
+  b.onclick=()=>{ lbRole=r;
+    lbTabs.querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected', String(x.dataset.role===r)));
+    renderRank(); };
+  lbTabs.appendChild(b);
+});
+
+function renderRank(){
+  const m = METRICS.find(x=>x.k===mSel.value)||METRICS[0];
+  const onlyRole = lbRole !== '전체';
+  const want = lbRole;
+  const total = D.players.length;
+
+  // 라인만 보기 = 사람만 거르는 게 아니라 **그 라인 판만으로 다시 잰 값**을 쓴다.
+  // 주 라인 비중이 38%인 사람을 전 라인 평균으로 정글 표에 올리면 순위가 뒤집힌다.
+  let rows;
+  if (onlyRole && m.rf) {
+    rows = D.players.filter(p=>p.role===want).map(p=>{
+      const rr = (p.roles||[]).find(x=>x.r===want);
+      return rr ? {p, v:m.rf(rr), n:rr.n, scoped:true} : null;
+    }).filter(r=>r && r.v!=null && !isNaN(r.v) && r.n>=20);
+  } else {
+    rows = D.players.map(p=>({p, v:m.f(p)})).filter(r=>r.v!=null && !isNaN(r.v));
+    if (onlyRole) rows = rows.filter(r=>r.p.role===want);
+    rows.forEach(r=>{ r.n = m.nf ? m.nf(r.p) : r.p.n; });
+    rows = rows.filter(r=>r.n);
+  }
+  const pool = onlyRole ? D.players.filter(p=>p.role===want).length : total;
+  const dropped = pool - rows.length;
+
+  // 비율 지표(승률·던진 판·뒤집은 판)를 윌슨 구간으로 정렬하던 분기가 있었지만,
+  // 그 세 지표가 재현성 0 이하로 순위표에서 빠지면서 도달할 수 없는 코드가 됐다.
+  // 되살릴 일이 생기면 git 이력에 있다.
+  rows.sort((a,b)=> m.hi ? b.v-a.v : a.v-b.v);
+  let rk = 0, prev = null;
+  rows.forEach((r,i)=>{
+    if (r.v !== prev) { rk = i+1; prev = r.v; } r.rk = rk; });
+
+  const out = document.getElementById('lbOut');
+  if(!rows.length){ out.innerHTML='<p class="muted">해당 조건에 표시할 사람이 없습니다.</p>';
+    document.getElementById('lbNote').textContent=''; return; }
+  const dp = m.dp == null ? 1 : m.dp;
+  // 피솔킬 계열은 라인 격차가 2.6배라 절대값 옆에 그 라인 기준선을 붙인다.
+  const SDB = D.sd_base || {};
+  const baseNote = r => {
+    const key = {sdpg:'sd', skpg:'sk', snet:null}[m.k];
+    if (!key) return '';
+    const role = r.scoped ? want : r.p.role;
+    const b = SDB[role];
+    return b && b[key] != null
+      ? '<span class="sub">'+esc(role)+' 평균 '+b[key]+'</span>' : '';
+  };
+  const fmt = r => m.fmt ? m.fmt(r.v, r.p)
+    : ((typeof r.v==='number'? r.v.toFixed(dp).replace(/\.?0+$/, s2=>dp>1?s2:'') : r.v)
+       + esc(m.u) + baseNote(r));
+  // 라인은 별도 열로. 닉네임 옆 배지로는 포지션이 눈에 안 들어왔다.
+  // 주 라인만 적으면 '미드 유저의 원딜 판'이 섞여 있다는 사실이 숨는다 -> 비중을 같이 적는다.
+  const lnCell = r => {
+    if (r.scoped) return '<td class="ln">'+esc(want)+' <small>판만</small></td>';
+    const sh = r.p.role_share;
+    return '<td class="ln">'+esc(r.p.role)+
+      (sh!=null && sh<85 ? ' <small>'+Math.round(sh)+'%</small>' : '')+'</td>';
+  };
+  out.innerHTML = '<table class="lb"><thead><tr><th></th><th>닉네임</th><th>라인</th>'+
+    '<th style="text-align:right">'+esc(m.l)+'</th><th style="text-align:right">'+
+    ((m.nf || (m.rf && onlyRole)) ? '표본' : '판수')+'</th></tr></thead><tbody>'+
+    rows.map(r=>'<tr><td class="rk">'+r.rk+'</td>'+
+      '<td class="nm" data-id="'+r.p.id+'">'+esc(r.p.name)+'</td>'+
+      lnCell(r)+
+      '<td class="val">'+fmt(r)+'</td>'+
+      '<td class="val" style="color:var(--muted);font-weight:400">'+r.n+'</td></tr>').join('')+
+    '</tbody></table>';
+
+  let note;
+  if (onlyRole && m.rf) {
+    note = esc(want)+' 판만 따로 집계한 값입니다(20판 이상). 전 라인 평균이 아닙니다.';
+  } else if (onlyRole) {
+    note = esc(want)+' 포지션인 사람만 골랐습니다. 다만 수치 자체는 그 사람의 <b>전 라인 평균</b>입니다.';
+  } else if (ROLE_SENSITIVE.has(m.k)) {
+    note = '⚠ 라인이 섞여 있습니다. 이 지표는 포지션마다 기준이 달라 그대로 비교하면 안 됩니다. 위에서 라인 탭을 골라 보세요.';
+  } else {
+    note = '판수가 적은 사람은 순위가 크게 흔들립니다.';
+  }
+  if (m.nf) note += ' 오른쪽 숫자는 총 판수가 아니라 <b>이 지표의 실제 표본</b>입니다.';
+  const rel = REL[m.k];
+  if (rel != null) {
+    note += ' 이 지표의 재현성은 <b>' + rel.toFixed(2) + '</b>입니다';
+    note += rel >= 0.6 ? ' (같은 사람 판을 반씩 갈라 매긴 두 순위가 그만큼 일치합니다).'
+      : rel >= 0.4 ? ' — 순위가 꽤 흔들립니다. 큰 차이만 믿으세요.'
+      : ' — <b>거의 우연입니다.</b> 순서를 믿지 마세요.';
+  }
+  if (dropped>0) note += ' 표본이 모자라 '+dropped+'명을 뺐습니다.';
+  // 길어지는 설명은 접어 둔다 — 표 밑에 다섯 문장이 늘 붙어 있으면 아무도 안 읽는다.
+  let more = '';
+  if (m.k==='sdpg' || m.k==='skpg' || m.k==='snet')
+    more += '<p>피솔킬은 라인 격차가 2.6배입니다(탑 1.97 ↔ 서포터 0.76) — 라인 탭을 켜고 보세요. '+
+      '데스 수가 같다면 피솔킬 1회가 팀 데스 1회보다 더 나쁘지는 않습니다(실측). '+
+      '서포터는 피솔킬 중 맞라이너에게 당한 비중이 12.6%뿐이라 라인전 지표로 읽으면 안 됩니다.</p>';
+  if (!onlyRole && rows.some(r=>r.p.role_share!=null && r.p.role_share<85))
+    more += '<p>라인 옆 %는 주 라인 비중입니다 — 100%가 아니면 다른 라인 판이 섞인 값입니다.</p>';
+  document.getElementById('lbNote').innerHTML = note +
+    (more ? '<details class="lbwhy" style="margin-top:6px;padding-top:6px">'+
+      '<summary>이 지표를 읽는 법</summary>'+more+'</details>' : '');
+  out.querySelectorAll('.nm').forEach(td=>td.onclick=()=>{location.hash='#/p/'+td.dataset.id;});
+}
+function renderH2H(){
+  const el = document.getElementById('h2hOut');
+  const rows = D.h2h||[];
+  if(!el) return;
+  if(!rows.length){ el.innerHTML='<p class="muted">아직 서로 만난 판이 없습니다.</p>'; return; }
+  const same = rows.filter(r=>r.same), vs = rows.filter(r=>!r.same);
+
+  // 예전에는 전부 한 줄에 ' · ' 로 이어붙여서 열 몇 개짜리 문장이 됐다. 표로 나눈다.
+  const duo = {};
+  same.forEach(r=>{const k=r.a+'⁣'+r.b;
+    duo[k]=duo[k]||{n:0,w:0,a:r.a,b:r.b}; duo[k].n++; duo[k].w+=r.awin?1:0;});
+  const pair = {};
+  vs.forEach(r=>{const k=r.a+'⁣'+r.b;
+    pair[k]=pair[k]||{n:0,aw:0,a:r.a,b:r.b}; pair[k].n++; pair[k].aw+=r.awin?1:0;});
+
+  const bar = (l, r2) => {
+    const t = l + r2 || 1;
+    return '<span class="h2bar"><i style="width:'+(l/t*100).toFixed(0)+'%"></i></span>';
+  };
+  const duoRows = Object.values(duo).sort((x,y)=>y.n-x.n).map(v=>{
+    const wr = v.w/v.n*100;
+    return '<tr><td class="who">'+esc(v.a)+' <span class="amp">+</span> '+esc(v.b)+'</td>'+
+      '<td class="mid">'+bar(v.w, v.n-v.w)+'</td>'+
+      '<td class="res"><b style="color:'+(wr>=50?'var(--good)':'var(--bad)')+'">'+
+        wr.toFixed(0)+'%</b><span class="sub2">'+v.w+'승 '+(v.n-v.w)+'패</span></td></tr>';
+  }).join('');
+  const vsRows = Object.values(pair).sort((x,y)=>y.n-x.n).map(v=>{
+    const bw = v.n - v.aw;
+    return '<tr><td class="who">'+esc(v.a)+' <span class="amp">vs</span> '+esc(v.b)+'</td>'+
+      '<td class="mid">'+bar(v.aw, bw)+'</td>'+
+      '<td class="res"><b>'+v.aw+' : '+bw+'</b><span class="sub2">'+v.n+'판</span></td></tr>';
+  }).join('');
+
+  el.innerHTML = '<h3 style="font-size:15px;margin:0 0 3px">우리끼리 만난 판</h3>'+
+    '<p class="muted" style="margin:0 0 12px">총 '+rows.length+'판 · 같은 팀 '+same.length+
+      '판 · 맞붙은 '+vs.length+'판</p>'+
+    '<div class="h2grid">'+
+      (duoRows ? '<div><h4 class="h2h4">같은 팀으로</h4>'+
+        '<table class="h2t"><tbody>'+duoRows+'</tbody></table></div>' : '')+
+      (vsRows ? '<div><h4 class="h2h4">맞붙어서</h4>'+
+        '<table class="h2t"><tbody>'+vsRows+'</tbody></table></div>' : '')+
+    '</div>'+
+    '<p class="muted">막대는 왼쪽 사람 기준입니다. 몇 판 안 되는 조합이 대부분이라 승률은 재미로만 보세요.</p>';
+}
+mSel.onchange=renderRank;
+function showTab(rank){
+  document.getElementById('paneRank').classList.toggle('hidden', !rank);
+  document.getElementById('paneList').classList.toggle('hidden', rank);
+  document.getElementById('tabRank').setAttribute('aria-selected', rank);
+  document.getElementById('tabList').setAttribute('aria-selected', !rank);
+  if(rank){ renderRank(); renderH2H(); }
+}
+document.getElementById('tabRank').onclick=()=>showTab(true);
+document.getElementById('tabList').onclick=()=>showTab(false);
+
+document.getElementById('search').addEventListener('input', e => renderRoster(e.target.value));
+rosterEl.addEventListener('click', e => {
+  const b = e.target.closest('.card');
+  if (b) location.hash = '#/p/' + b.dataset.id;
+});
+
+// (카이제곱 chiP/erf 는 승률·던진 판을 순위에서 빼면서 호출자가 사라져 지웠다.
+//  되살릴 일이 생기면 git 이력에 있다.)
+function wilson(w, n) {
+  if (!n) return [0, 1];
+  const z = 1.96, p = w / n, d = 1 + z * z / n;
+  const c = (p + z * z / (2 * n)) / d;
+  const m = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d;
+  return [Math.max(0, c - m), Math.min(1, c + m)];
+}
+// mode: 'rate'(승률, 50% 기준 편차)  'volume'(판수 길이)  'plain'(단순 값)
+function bars(rows, opt) {
+  opt = opt || {};
+  const mode = opt.mode || 'rate';
+  if (!rows || !rows.length) return '<p class="muted">아직 판수가 모자라요.</p>';
+  const unit = opt.unit != null ? opt.unit : '%';
+  const maxN = Math.max(...rows.map(r => r.n || 0), 1);
+  const maxV = Math.max(...rows.map(r => r.wr == null ? 0 : r.wr), 1);
+  return rows.map(r => {
+    const v = r.wr == null ? 0 : r.wr, n = r.n || 0;
+    let width, cls = '', mark = '';
+    if (mode === 'volume') {
+      width = n / maxN * 100; cls = 'neu';
+    } else if (mode === 'plain') {
+      width = Math.min(100, v / (opt.max || maxV) * 100); cls = 'neu';
+    } else {
+      // 승률: 50%에서 얼마나 벗어났나(±25%p 만점).
+      // 방향(위/아래)은 색으로, 확신은 진하기로 표현한다.
+      const enough = n >= 6;
+      // 표본이 모자라면 숫자를 '—'로 감추므로 막대도 그리지 않는다
+      // (안 그러면 "데이터 부족"인데 막대만 꽉 찬 모순이 생긴다).
+      width = enough ? Math.min(100, Math.abs(v - 50) / 25 * 100) : 0;
+      const ci = wilson(Math.round(v / 100 * n), n);
+      const sure = enough && (ci[0] > 0.5 || ci[1] < 0.5);
+      // 회색(neu)으로 뭉개면 70%와 30%가 같은 길이·같은 색이 되어 구분이 안 된다 → 색은 유지, 옅게.
+      cls = (v >= 50 ? '' : 'lo') + (sure ? '' : ' un');
+      if (sure) mark = v >= 50 ? ' ▲' : ' ▼';
+    }
+    const val = (mode === 'rate' && n > 0 && n < 6) ? '—'
+              : (v.toFixed ? v.toFixed(1).replace(/\.0$/, '') : v) + unit;
+    return '<div class="bar"><span class="bl" title="' + esc(r.l) + '">' + esc(r.l) + '</span>' +
+      '<span class="bt"><span class="bf ' + cls + '" style="width:' + width.toFixed(1) + '%"></span></span>' +
+      '<span class="bv">' + val + mark +
+      (r.n != null && r.n > 0 ? ' <i>' + r.n + '판</i>' : '') + '</span></div>';
+  }).join('');
+}
+function box(title, inner) { return '<div class="box"><h3>' + esc(title) + '</h3>' + inner + '</div>'; }
+
+function renderPlayer(id) {
+  const p = D.players.find(x => x.id === id);
+  if (!p) { location.hash = ''; return; }
+  const o = p.obj || {};
+  const kpi = [['판수', p.n + '판'], ['승률', p.wr + '%'], ['주 라인', p.role],
+               ['KDA', p.kda], ['킬관여', p.kp + '%'], ['분당 CS', p.cspm],
+               ['시야', p.vs], ['분당딜', p.dpm]];
+  const jumps = [['live', '최근 경기'], ['hof', '명예의 전당'], ['ch', '챔피언'], ['query', '조합 조회'],
+                 ['lane', '맞라인'], ['team', '아군·적'], ['obj', '오브젝트'],
+                 ['map', '죽음의 지도'], ['solo', '피솔킬'], ['habit', '습관'],
+                 ['games', '경기 목록'], ['fb', '고칠 점']];
+  let h = '<button class="back" id="back">← 전체 목록</button>' +
+    '<h1 style="margin:0">' + esc(p.name) + ' <span class="tag">#' + esc(p.tag) + '</span></h1>' +
+    '<p class="sub">' + esc(p.role) + ' · ' + p.n + '판 · 승률 ' + p.wr + '%</p>' +
+    '<div class="jump">' + jumps.map(j =>
+      '<button data-go="' + j[0] + '">' + j[1] + '</button>').join('') + '</div>' +
+    '<div class="kpis">' + kpi.map(k =>
+      '<div class="kpi"><div class="kl">' + k[0] + '</div><div class="kv">' + k[1] + '</div></div>'
+    ).join('') + '</div>' +
+    '<h2 id="ch">챔피언</h2><div class="grid2">' +
+      box('많이 한 챔피언', bars(p.champs, {mode: 'volume'})) +
+      box('라인 분포', bars(p.roles.map(r => ({l: r.r, n: r.n, wr: r.wr})), {mode: 'volume'})) + '</div>' +
+    (function () {
+      const L = (p.ld || {}).m15 || (p.ld || {}).m10;
+      if (!L) return '<h2 id="lane">맞라인 상대</h2>';
+      const c = v => v > 0 ? 'var(--good)' : (v < 0 ? 'var(--bad)' : 'var(--ink)');
+      const sg = v => (v > 0 ? '+' : '') + v;
+      const mn = (p.ld || {}).m15 ? 15 : 10;
+      return '<h2 id="lane">맞라인 상대</h2>' +
+        '<div class="box"><h3>' + mn + '분 라인전 격차</h3>' +
+        '<p class="note">같은 경기 맞라이너와의 차이입니다. 티어·메타가 자동으로 통제되는 가장 공정한 지표입니다.</p>' +
+        '<div class="ld">' +
+        '<div class="ldc"><div class="v" style="color:' + c(L.cs) + '">' + sg(L.cs) + '</div>' +
+          '<div class="k">CS 차이</div></div>' +
+        '<div class="ldc"><div class="v" style="color:' + c(L.gold) + '">' + sg(L.gold) + '</div>' +
+          '<div class="k">골드 차이</div></div>' +
+        '<div class="ldc"><div class="v" style="color:' + c(L.xp) + '">' + sg(L.xp) + '</div>' +
+          '<div class="k">경험치 차이</div></div></div>' +
+        '<p class="muted">' + L.n + '판 평균</p></div>';
+    })() +
+    '<div class="grid2">' +
+      box('맞라인 챔피언별 승률', bars(p.lane)) +
+      box('적 정글 챔피언별 승률', bars(p.ejg)) + '</div>' +
+    '<h2 id="team">아군 · 적</h2>' +
+    (function(){
+      const E = p.champ_eff || [], M = p.champ_eff_meta || {};
+      if(!E.length) return box('챔피언 궁합', '<p class="muted">아직 판수가 모자라요.</p>');
+      // 아군과 적을 한 목록에 섞어 놓으면 '진영' 배지를 매 줄 읽어야 한다. 좌우로 나눈다.
+      const row = r =>
+        '<div class="effrow' + (r.sig ? '' : ' dim') + '">' +
+        '<span>' + esc(r.l) + ' <span class="sd">' + r.n + '판</span></span>' +
+        '<span class="df" style="color:' + (r.diff >= 0 ? 'var(--good)' : 'var(--bad)') + '">' +
+        (r.diff >= 0 ? '+' : '') + r.diff + '%p</span></div>';
+      const side = (want, title, empty) => {
+        const rows = E.filter(r => r.side === want);
+        return box(title, rows.length ? rows.map(row).join('')
+          : '<p class="muted">' + empty + '</p>');
+      };
+      return '<div class="grid2">' +
+        side('아군', '아군일 때 — 내 평균 ' + M.base + '% 대비',
+             '눈에 띄는 차이가 없습니다.') +
+        side('적', '적일 때 — 내 평균 ' + M.base + '% 대비',
+             '눈에 띄는 차이가 없습니다.') +
+        '</div>' +
+        '<p class="muted" style="margin:-6px 0 14px">+%p 는 그 챔피언이 있을 때 내 승률이 ' +
+        '평소보다 얼마나 높았는지입니다. 표본이 적으면 내 평균 쪽으로 당겨서 계산했고' +
+        '(베이즈 축소), 흐릿한 줄은 우연일 수 있는 차이입니다.' +
+        (M.few_games ? ' 판수가 모자란 조합 ' + M.few_games + '건' : '') +
+        (M.not_significant ? ' · 차이가 우연 범위인 조합 ' + M.not_significant + '건' : '') +
+        ((M.few_games || M.not_significant) ? '은 숨겼습니다.' : '') + '</p>';
+    })() +
+    '<div class="grid2">' +
+      box('아군 정글 챔피언별 승률', bars(p.ajg)) + '</div>' +
+    '<h2 id="obj">오브젝트</h2>' +
+    (function () {
+      const cb = p.cb || {};
+      if (cb.throw_rate == null && cb.comeback_rate == null) return '';
+      // 큰 숫자만 띄우면 2패/20판짜리 10.0% 가 확정된 사실처럼 읽힌다. 분모와 구간을 같이 준다.
+      const aN = aheadN(p), bN = behindN(p);
+      const cell = (val, n, col2, head, tail) => {
+        if (val == null) return '';
+        const k = n ? Math.round(val / 100 * n) : null;
+        const ci = n ? wilson(k, n) : null;
+        const thin = !n || n < 30;
+        return '<div><div class="v" style="color:' + (thin ? 'var(--ink)' : col2) + '">' + val + '%' +
+          (thin ? '<span style="font-size:11px;color:var(--muted);font-weight:400"> 표본 부족</span>' : '') +
+          '</div><div class="muted">' + head + (n ? n + '판 중 ' + k + '판' + tail : '') +
+          (ci ? '<br>95% 구간 ' + Math.round(ci[0]*100) + '~' + Math.round(ci[1]*100) + '%' : '') +
+          '</div></div>';
+      };
+      return '<div class="box"><div class="two">' +
+        cell(cb.throw_rate, aN, 'var(--bad)', '던진 판 — 팀이 15분에 +1.5k 앞섰던 ', ' 패배') +
+        cell(cb.comeback_rate, bN, 'var(--good)', '뒤집은 판 — 팀이 15분에 -1.5k 밀렸던 ', ' 승리') +
+        '</div><p class="muted">팀 골드 기준입니다 — 본인이 앞섰다는 뜻은 아닙니다. ' +
+        '표본이 작아 구간이 넓으니 한 자릿수 차이는 의미가 없습니다.</p></div>';
+    })() +
+    '<div class="grid2">' +
+      box('획득 용 수별 승률', bars((o.dragon_count || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
+      box('첫 용 획득 시점별 승률', bars((o.first_dragon_time || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
+      box('첫 용 속성별 승률', bars((o.first_dragon_element || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
+      box('오브젝트 선취 시 승률', bars((o.firsts || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
+      box('공허 유충 획득 시 승률', bars((o.horde_bin || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
+      box('15분 골드 차이별 승률', bars(((p.cb || {}).by_lead15 || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
+      '</div>';
+  if ((o.impact || []).length) {
+    const gmax = Math.max(...(o.impact || []).map(r => Math.abs(r.gap)), 1);
+    h += box('오브젝트별 승률 차이 (획득 − 내줌)', (o.impact || []).map(r =>
+      '<div class="bar"><span class="bl">' + esc(r.label) + '</span><span class="bt">' +
+      '<span class="bf" style="width:' + (Math.abs(r.gap) / gmax * 100).toFixed(0) + '%"></span></span>' +
+      '<span class="bv">' + (r.gap >= 0 ? '+' : '') + r.gap + '%p</span></div>').join('') +
+      '<p class="muted">획득한 판과 내준 판의 승률 차이입니다. 인과가 아니라 동반 관계입니다.</p>');
+  }
+  h += '<h2 id="live">최근 경기</h2><div class="box">' +
+    '<p class="note">아래 통계는 하루 한 번 갱신됩니다. 방금 한 게임은 이 버튼으로 바로 확인하세요.</p>' +
+    '<button class="livebtn" id="liveBtn">최근 경기 불러오기</button>' +
+    '<div id="liveOut"></div></div>';
+
+  const F = p.fun || {};
+  // 명예의 전당 (챔피언 섹션 앞으로 이동시키기 위해 별도 삽입)
+  if ((F.hof || []).length) {
+    const hof = F.hof.map(r =>
+      '<div class="rec' + (r.hero ? ' hero' : '') + '"><div class="rl">' + esc(r.label) + '</div>' +
+      '<div class="rv">' + r.value.toLocaleString() + '<span style="font-size:12px">' +
+      esc(r.unit || '') + '</span></div>' +
+      '<div class="rm" data-when="' + esc(r.when) + '">' + esc(r.champ) + ' · ' + esc(r.when) +
+      (r.win ? ' · 승' : ' · 패') + '</div></div>').join('');
+    h = h.replace('<h2 id="ch">', '<h2 id="hof">명예의 전당</h2><div class="hof">' + hof +
+      '</div><p class="muted">최고 기록은 판수가 많을수록 커집니다. 판수와 함께 보세요.' +
+      ((F.hof || []).some(r => r.surrender)
+        ? ' 최속 승리가 15~16분이면 대개 상대 항복입니다 — 항복 가능한 가장 이른 시각이 15분입니다.'
+        : '') + '</p>' +
+      '<h2 id="ch">');
+  }
+  // 죽음의 지도
+  const M = F.map || {};
+  if (M.grid) {
+    const cell = (v, mx, hue) => {
+      const a = mx ? Math.min(1, v / mx) : 0;
+      return '<rect x="0" y="0" width="1" height="1" fill="' + hue +
+             '" fill-opacity="' + (a * 0.92).toFixed(2) + '"/>';
+    };
+    const mapSVG = (g, hue, label) => {
+      const mx = Math.max(...g.flat(), 1);
+      let r = '<svg viewBox="0 0 ' + M.grid + ' ' + M.grid + '" class="chart" ' +
+              'style="width:100%;border:1px solid var(--line);border-radius:8px;background:var(--gl)">';
+      for (let j = 0; j < M.grid; j++) for (let i = 0; i < M.grid; i++) {
+        const v = g[j][i]; if (!v) continue;
+        r += '<rect x="' + i + '" y="' + (M.grid - 1 - j) + '" width="1" height="1" fill="' + hue +
+             '" fill-opacity="' + Math.min(1, v / mx * 0.95).toFixed(2) + '"><title>' + v + '</title></rect>';
+      }
+      r += '<line x1="0" y1="' + M.grid + '" x2="' + M.grid + '" y2="0" stroke="var(--muted)" ' +
+           'stroke-width="0.06" stroke-dasharray="0.3 0.3"/></svg>';
+      return '<div><h3 style="font-size:13px;margin:0 0 6px">' + label + '</h3>' + r + '</div>';
+    };
+    h += '<h2 id="map">죽음의 지도</h2><div class="box"><div class="maps">' +
+      mapSVG(M.deaths, 'var(--bad)', '내가 죽은 곳 (' + M.n_death + '회)') +
+      mapSVG(M.kills, 'var(--good)', '내가 킬 낸 곳 (' + M.n_kill + '회)') +
+      '</div><p class="muted">항상 블루 진영 기준으로 뒤집어 겹쳤습니다. 왼쪽 아래가 우리 본진, 대각선이 미드입니다.</p></div>';
+  }
+  // 데스 부검
+  if ((F.autopsy || []).length) {
+    // 라벨은 analytics/fun_stats.py 가 정하므로 키가 어긋나면 전부 회색이 된다.
+    const cols = {'한타에서 죽음':'#6b8cc4','소규모 교전':'#4a9d6f','갱 당함':'#c8a24a',
+                  '1:1 라인전 사망':'#c05a5a','짤림':'#9b59b6','처형(미니언·포탑)':'#7d879c'};
+    const st = F.autopsy.map(r => '<div style="width:' + r.pct + '%;background:' +
+      (cols[r.label] || '#888') + '">' + (r.pct >= 9 ? r.pct + '%' : '') + '</div>').join('');
+    const lg = F.autopsy.map(r => '<span><i style="background:' + (cols[r.label] || '#888') +
+      '"></i>' + esc(r.label) + ' ' + r.pct + '%</span>').join('');
+    h += box('죽은 이유', '<div class="stack">' + st + '</div>' +
+      '<div class="legend">' + lg + '</div>' +
+      '<p class="muted">짤림 = 여러 명에게 아군 없이 잡힘 · 1:1 라인전 사망 = 근처에 아군이 없는 상태로 1:1에서 짐. 3분 이후만 집계합니다.<br>위 <b>피솔킬</b> 카드와 숫자가 다릅니다 — 피솔킬은 아군이 옆에 있었든 말든 “어시스트 없이 잡힘” 전부를 세고, 여기 1:1 라인전 사망은 그중 아군이 근처에 없던 것만 셉니다. 위치는 60초 프레임 사이를 보간해 잡습니다.</p>');
+  }
+  // ---- 피솔킬 ----
+  const SD = p.sd || {};
+  if (SD.n != null && SD.games) {
+    const net = SD.net_per_game;
+    const netCol = net > 0.05 ? 'var(--good)' : (net < -0.05 ? 'var(--bad)' : 'var(--ink)');
+    const kp2 = [
+      ['판당 피솔킬', SD.per_game, 'var(--bad)'],
+      ['판당 솔킬', SD.given_per_game, 'var(--good)'],
+      ['수지 (준 − 당한)', (net > 0 ? '+' : '') + net, netCol],
+      ['한 번도 안 당한 판', SD.clean_pct + '%', 'var(--ink)'],
+    ];
+    h += '<h2 id="solo">피솔킬</h2>' +
+      '<div class="kpis">' + kp2.map(k =>
+        '<div class="kpi"><div class="kl">' + k[0] + '</div>' +
+        '<div class="kv" style="color:' + k[2] + '">' + k[1] + '</div></div>').join('') + '</div>' +
+      '<p class="muted" style="margin:-4px 0 12px">' + SD.games + '판에서 ' + SD.n +
+      '회 당하고 ' + SD.given + '회 냈습니다. <b>피솔킬 = 어시스트 없이 적 챔피언 한 명에게 잡힌 죽음</b>으로, ' +
+      '라이엇이 세는 “솔로 킬”과 똑같은 자를 뒤집어 쓴 것입니다(4,000행에서 정확히 일치 확인). ' +
+      '다만 아군이 옆에 있는데 적 정글에게 혼자 잡혀도 여기 들어갑니다 — 그래서 아래에 라인전 비중과 가해자 라인을 따로 뒀습니다.</p>' +
+      '<div class="grid2">';
+
+    // 가해자 라인
+    if ((SD.by_role || []).length) {
+      const rc = {'맞라이너':'#c05a5a','정글':'#c8a24a','탑':'#6b8cc4','미드':'#4a9d6f',
+                  '원딜':'#9b59b6','서포터':'#7d879c','미상':'#888'};
+      const st2 = SD.by_role.map(r => '<div style="width:' + r.pct + '%;background:' +
+        (rc[r.l] || '#888') + '">' + (r.pct >= 9 ? r.pct + '%' : '') + '</div>').join('');
+      const lg2 = SD.by_role.map(r => '<span><i style="background:' + (rc[r.l] || '#888') +
+        '"></i>' + esc(r.l) + ' ' + r.n + '회</span>').join('');
+      h += box('피솔킬 가해자 라인', '<div class="stack">' + st2 + '</div>' +
+        '<div class="legend">' + lg2 + '</div>' +
+        '<p class="muted">맞라이너 ' + SD.vs_laner_pct + '% · 라인전(0~15분)에 ' + SD.lane_pct +
+        '%가 몰려 있습니다. 맞라이너 비중이 높으면 라인전 문제, 정글·로밍 비중이 높으면 시야와 콜 문제입니다.</p>');
+    }
+
+    // 시간 분포
+    if ((SD.by_min || []).length) {
+      const mx2 = Math.max(...SD.by_min.map(x => x.n), 1);
+      h += box('피솔킬 시간대 분포', '<div class="spark">' + SD.by_min.map(x =>
+        '<div class="sb" style="height:' + Math.round(x.n / mx2 * 100) + '%" title="' +
+        x.m + '~' + (x.m + 2) + '분 · ' + x.n + '회"></div>').join('') + '</div>' +
+        '<div class="spx"><span>0분</span><span>15분</span><span>30분+</span></div>' +
+        '<p class="muted">2분 단위입니다. 봉우리가 6~10분에 있으면 2코어 타이밍, 0~4분이면 렙2·렙3 올인입니다.</p>');
+    }
+    h += '</div>';
+
+    // 나를 잡은 챔피언 — 만난 판수 대비
+    const bc = (SD.by_champ || []).filter(c => c.faced >= 8 && c.pg != null);
+    if (bc.length) {
+      const mxp = Math.max(...bc.map(c => c.pg), 0.01);
+      h += box('나를 가장 잘 잡는 챔피언', bc.slice(0, 10).map(c =>
+        '<div class="bar"><span class="bl">' + esc(c.l) + '</span><span class="bt">' +
+        '<span class="bf" style="width:' + (c.pg / mxp * 100).toFixed(0) +
+        '%;background:var(--bad)"></span></span>' +
+        '<span class="bv">' + c.pg + '<span style="color:var(--muted);font-weight:400"> /판 · ' +
+        c.n + '회/' + c.faced + '판</span></span></div>').join('') +
+        '<p class="muted">만난 판수로 나눈 값입니다. 8판 이상 만난 챔피언만 보여줍니다 — ' +
+        '한두 판 만나고 한 번 죽은 챔프가 1위로 올라오는 걸 막기 위해서입니다.</p>');
+    }
+  }
+
+  // 습관 (연승 / 회색화면 / 시계)
+  h += '<h2 id="habit">습관과 리듬</h2><div class="grid2">';
+  const S = F.streak;
+  if (S) {
+    const grass = (S.recent || []).map(w => '<div class="gd' + (w ? ' w' : '') + '"></div>').join('');
+    h += box('연승 · 연패', '<div class="streak">' +
+      '<div><div class="muted">최장 연승</div><div class="sbig" style="color:var(--good)">' +
+      S.win + '</div></div>' +
+      '<div><div class="muted">최장 연패</div><div class="sbig" style="color:var(--bad)">' +
+      S.loss + '</div></div>' +
+      '<div><div class="muted">현재</div><div class="sbig">' + S.cur +
+      (S.cur_win ? '연승' : '연패') + '</div></div></div>' +
+      '<div class="grass">' + grass + '</div>' +
+      (S.expected ? '<p class="muted">이 승률·판수면 순전히 운으로도 ' + S.expected +
+        '연승 정도는 나옵니다. 그보다 훨씬 길면 진짜 상승세.</p>' : ''));
+  }
+  const DS = F.dead || {};
+  if (DS.pct != null) {
+    h += box('죽어 있던 시간', '<div class="sbig">' + DS.pct + '%</div>' +
+      '<p class="muted">2~20분 동안 죽어 있던 시간 비율입니다' +
+      (DS.n ? ' (최근 ' + DS.n + '판 기준)' : '') + '. 낮을수록 좋습니다. ' +
+      '20분 이후는 안 셉니다 — 전 구간으로 재면 이 값보다 커집니다.</p>' +
+      bars((DS.curve || []).filter(c => c.m % 4 === 0).map(c =>
+        ({l: c.m + '분', wr: c.v})), {mode: 'plain', max: 30}));
+  }
+  if ((F.clock || []).length) {
+    h += box('시간대별 승률 (한국 시간)', bars(F.clock.map(r =>
+      ({l: r.label, n: r.n, wr: r.winrate}))));
+  }
+  h += '</div>';
+
+  // ---- 자유 조합 조회 ----
+  if ((p.games || []).length) {
+    const uniq = (k) => [...new Set(p.games.map(g => g[k]).filter(Boolean))].sort(
+      (a, b) => col.compare(a, b));
+    const sel = (id, lab, opts) => '<label>' + lab +
+      '<select id="' + id + '"><option value="">전체</option>' +
+      opts.map(o => '<option>' + esc(o) + '</option>').join('') + '</select></label>';
+    h += '<h2 id="query">조합 조회</h2><div class="box">' +
+      '<p class="note">조건을 골라 그 상황의 전적만 볼 수 있습니다. ' +
+      '조합이 좁을수록 표본이 작아지니 판수를 함께 보세요.</p>' +
+      '<div class="filters">' +
+        sel('fC', '내 챔피언', uniq('c')) + sel('fO', '맞라인 상대', uniq('o')) +
+        '<button type="button" class="qreset" id="qReset">초기화</button>' +
+      '</div>' +
+      // 다섯 개를 한 줄에 늘어놓으니 무엇부터 고를지 알 수 없었다.
+      // 실제로 많이 쓰는 둘만 남기고 나머지는 접어 둔다.
+      '<details class="qmore"><summary>조건 더하기 (라인 · 정글)</summary>' +
+        '<div class="filters">' +
+          sel('fR', '내 라인', uniq('r')) + sel('fE', '적 정글', uniq('ej')) +
+          sel('fA', '아군 정글', uniq('aj')) +
+        '</div></details>' +
+      '<div id="qout"></div></div>';
+  }
+
+  // ---- 경기 목록 ----
+  if ((p.recent || []).length) {
+    h += '<h2 id="games">최근 경기 목록</h2><div class="box">' +
+      '<div class="mrow" style="color:var(--muted);font-size:10.5px">' +
+      '<span>결과</span><span>챔피언</span><span>KDA</span><span>CS</span><span>날짜</span></div>' +
+      p.recent.map(g => '<div class="mrow" id="m_' + esc(g.id) + '">' +
+        '<span class="' + (g.w ? 'tagw' : 'tagl') + '">' + (g.w ? '승' : '패') + '</span>' +
+        '<span>' + esc(g.c) + ' <span class="muted">' + esc(g.r) + ' · ' + g.m + '분</span></span>' +
+        '<span style="font-family:IBM Plex Mono,monospace">' + esc(g.kda) + '</span>' +
+        '<span style="font-family:IBM Plex Mono,monospace">' + g.cs + '</span>' +
+        '<span class="muted">' + esc(g.d.slice(5)) + '</span></div>').join('') +
+      '</div>';
+  }
+
+  h += '<h2 id="fb">고칠 점</h2>';
+  h += (p.fb && p.fb.length)
+    ? p.fb.map(t => '<div class="fb">' + t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>') + '</div>').join('')
+    : '<p class="muted">표본이 더 쌓이면 제공됩니다.</p>';
+
+  // ---- 챔피언 보정 표 ----
+  const Z = (p.zs || []).filter(z => z.pct_raw != null);
+  if (Z.length) {
+    // 상위/하위를 섞으면 방향을 못 읽는다. '상위 N%' 하나로 통일 — 작을수록 좋다.
+    const band = q => '상위 ' + Math.max(1, Math.min(99, Math.round(100 - q))) + '%';
+    const rows = [...Z].sort((a, b) => a.pct - b.pct).map(z => {
+      const mv = z.pct - z.pct_raw;
+      const cls = Math.abs(mv) < 4 ? 'fl' : (mv > 0 ? 'up' : 'dn');
+      const am = Math.round(Math.abs(mv));
+      const arrow = am === 0 ? '' : (mv > 0 ? '▲' : '▼') + am;
+      const drv = (z.drivers || []).filter(x => x.share != null && x.n >= 5 &&
+                    Math.abs(x.share) >= .2 && (x.share < 0) === !!z.higher_better)
+                  .sort((a, b) => Math.abs(b.share) - Math.abs(a.share)).slice(0, 2);
+      const ciTxt = (z.lo != null && z.hi != null)
+        ? (() => { const a = Math.max(1, Math.min(99, Math.round(100 - z.hi)));
+                   const b = Math.max(1, Math.min(99, Math.round(100 - z.lo)));
+                   return '<span class="sub">' + Math.min(a,b) + '~' + Math.max(a,b) + '%</span>'; })()
+        : '';
+      let r = '<tr><td>' + esc(z.ko) + '</td><td>' + z.me + '</td><td class="fl">' + z.exp +
+        '</td><td class="fl">' + band(z.pct_raw) + '</td><td class="mv ' + cls + '">' +
+        band(z.pct) + ' <span style="font-size:11px">' + arrow + '</span>' + ciTxt + '</td></tr>';
+      if (drv.length && Math.abs(mv) >= 4) {
+        r += '<tr><td class="why" colspan="5">↳ ' +
+          drv.map(x => esc(x.champ) + ' ' + x.n + '판').join(' · ') +
+          ' 때문에 기대치가 ' + (mv > 0 ? '낮' : '높') + '게 잡힙니다</td></tr>';
+      }
+      return r;
+    }).join('');
+    h += '<div class="box" style="margin-top:14px">' +
+      '<h3 style="margin:0 0 4px;font-size:13px">챔피언 보정 백분위</h3>' +
+      '<p class="muted" style="margin:0 0 8px">같은 ' + esc(josa(p.role, '이라도', '라도')) +
+      ' 고르는 챔피언마다 기대 딜량·CS·시야가 ' +
+      '애초에 다릅니다. 그래서 <b>내가 고른 챔피언들의 평균</b>을 기대치로 잡고, 거기서 얼마나 ' +
+      '벗어났는지로 다시 줄을 세웠습니다. 기대치는 <b>본인 판을 통째로 뺀</b> 값이라 자기 성적이 ' +
+      '자기 기준이 되는 일은 없습니다.</p>' +
+      '<div style="overflow-x:auto"><table class="adj"><tr><th>지표</th><th>내 값</th>' +
+      '<th>챔프 기대치</th><th>보정 전</th><th>보정 후 <span style="font-weight:400">· 95% 구간</span>' +
+      '</th></tr>' + rows + '</table></div>' +
+      '<p class="muted">작은 글씨가 95% 구간입니다. 폭이 30%p를 넘으면 순위를 말할 수 없어 ' +
+      '고칠 점 문장에서 뺐습니다 — 표본이 그만큼 부족하다는 뜻입니다.</p>' +
+      '<p class="muted">' + ((p.zs[0] || {}).pop_kind === 'own'
+        ? '비교 대상은 <b>' + esc(p.name) + '님이 실제로 뛴 경기에 나온 같은 라인 선수 ' +
+          ((p.zs[0] || {}).pop || 0).toLocaleString() + '명</b>입니다(본인 제외). ' +
+          '매칭 시스템이 실력을 맞춰 넣어준 사람들이라 "같은 라인 N명 중 몇 등"이 그대로 성립합니다. ' +
+          '대부분 1판씩만 나오므로 평균만 이 집단에서 쓰고, 흩어진 정도는 라인 전체 표본에서 가져왔습니다 ' +
+          '— 작은 집단에서 산포를 직접 재면 0으로 무너져 사소한 차이가 "상위 99%"로 튑니다.'
+        : '비교 대상은 이 데이터에 등장한 같은 라인 전원' +
+          ((p.zs[0] || {}).pop ? ' ' + p.zs[0].pop.toLocaleString() + '명' : '') +
+          '입니다(본인 제외). 1~2판만 나온 사람이 대부분이라 그 표본 잡음은 분산분해로 걷어냈습니다.') +
+      '</p></div>';
+  }
+
+  const v = document.getElementById('playerView');
+  v.innerHTML = h;
+  v.querySelector('#back').onclick = () => { location.hash = ''; };
+  v.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
+    const el = document.getElementById(b.dataset.go);
+    if (el) el.scrollIntoView({behavior: 'smooth', block: 'start'});
+  });
+
+  const ids = ['fC', 'fR', 'fO', 'fE', 'fA'], keys = ['c', 'r', 'o', 'ej', 'aj'];
+  const out = document.getElementById('qout');
+  function runQuery() {
+    if (!out) return;
+    const want = ids.map(i => (document.getElementById(i) || {}).value || '');
+    const rows = (p.games || []).filter(g => keys.every((k, i) => !want[i] || g[k] === want[i]));
+    const n = rows.length, w = rows.reduce((s, g) => s + g.w, 0);
+    const wr = n ? (w / n * 100).toFixed(1) : '—';
+    const note = n === 0 ? '<span class="muted">조건에 맞는 경기가 없습니다.</span>'
+      : (n < 5 ? '<span class="muted">표본이 ' + n + '판뿐이라 승률은 참고만 하세요.</span>' : '');
+    out.innerHTML = '<div class="qres"><span class="big" style="color:' +
+      (n && w / n >= 0.5 ? 'var(--good)' : 'var(--bad)') + '">' + wr + '%</span>' +
+      '<span>' + n + '판 · ' + w + '승 ' + (n - w) + '패</span>' + note + '</div>' +
+      (n ? '<div class="glist"><div class="grow hd"><span>결과</span><span>내 챔프</span>' +
+        '<span>맞라인</span><span>적 정글</span><span>날짜</span></div>' +
+        rows.slice(0, 60).map(g => '<div class="grow">' +
+          '<span class="' + (g.w ? 'tagw' : 'tagl') + '">' + (g.w ? '승' : '패') + '</span>' +
+          '<span>' + esc(g.c) + '</span><span>' + esc(g.o || '—') + '</span>' +
+          '<span>' + esc(g.ej || '—') + '</span><span class="muted">' + esc(g.d) + '</span>' +
+          '</div>').join('') +
+        (n > 60 ? '<p class="muted">최근 60판만 표시</p>' : '') + '</div>' : '');
+  }
+  ids.forEach(i => { const el = document.getElementById(i); if (el) el.onchange = runQuery; });
+  const qr = document.getElementById('qReset');
+  if (qr) qr.onclick = () => { ids.forEach(i => { const e = document.getElementById(i);
+    if (e) e.value = ''; }); runQuery(); };
+  runQuery();
+
+  // 명예의 전당 카드 클릭 → 같은 날짜 경기로 스크롤 + 강조
+  v.querySelectorAll('.rec').forEach(card => {
+    const when = (card.querySelector('[data-when]') || {}).dataset?.when;
+    if (!when) return;
+    const hit = (p.recent || []).find(g => g.d === when);
+    if (!hit) return;                    // 최근 목록에 없는 옛 기록은 클릭 대상이 아니다
+    card.style.cursor = 'pointer';
+    card.title = '이 경기로 이동';
+    card.onclick = () => {
+      const el = document.getElementById('m_' + hit.id);
+      if (!el) return;
+      v.querySelectorAll('.mrow.hl').forEach(x => x.classList.remove('hl'));
+      el.classList.add('hl');
+      el.scrollIntoView({behavior: 'smooth', block: 'center'});
+    };
+  });
+
+  const lb = document.getElementById('liveBtn'), lo = document.getElementById('liveOut');
+  if (lb) lb.onclick = async () => {
+    lb.disabled = true; lb.textContent = '불러오는 중…';
+    lo.innerHTML = '';
+    try {
+      const q = '?name=' + encodeURIComponent(p.name) + '&tag=' + encodeURIComponent(p.tag);
+      const res = await fetch('/api/recent' + q);
+      const j = await res.json();
+      if (j.error) {
+        lo.innerHTML = '<p class="muted" style="color:var(--bad)">' + esc(j.error) + '</p>';
+      } else if (!(j.games || []).length) {
+        lo.innerHTML = '<p class="muted">최근 솔로랭크 경기가 없습니다.</p>';
+      } else {
+        lo.innerHTML = j.games.map(g => {
+          const when = new Date(g.playedAt);
+          const ago = Math.max(0, Math.round((Date.now() - when.getTime()) / 3600000));
+          return '<div class="lgame"><div class="lt">' +
+            '<span class="' + (g.win ? 'tagw' : 'tagl') + '">' + (g.win ? '승리' : '패배') + '</span>' +
+            '<b>' + esc(kch(g.champion)) + '</b>' +
+            '<span class="muted">' + esc(POS[g.position] || g.position || '') +
+            (g.opponent ? ' · vs ' + esc(kch(g.opponent)) : '') +
+            (g.enemyJungler ? ' · 적정글 ' + esc(kch(g.enemyJungler)) : '') +
+            '</span><span class="muted">' + (ago < 24 ? ago + '시간 전' : when.toLocaleDateString('ko-KR')) +
+            ' · ' + g.durationMin + '분</span></div>' +
+            '<div class="lstats"><span>KDA <b>' + esc(g.kda) + '</b></span>' +
+            '<span>CS <b>' + g.cs + '</b> (분당 ' + g.cspm + ')</span>' +
+            '<span>킬관여 <b>' + g.killParticipation + '%</b></span>' +
+            '<span>딜비중 <b>' + g.damageShare + '%</b></span>' +
+            '<span>시야 <b>' + g.visionScore + '</b></span></div></div>';
+        }).join('');
+      }
+    } catch (e) {
+      lo.innerHTML = '<p class="muted" style="color:var(--bad)">불러오지 못했습니다: ' + esc(e.message) + '</p>';
+    }
+    lb.disabled = false; lb.textContent = '다시 불러오기';
+  };
+}
+function route() {
+  const m = location.hash.match(/^#\/p\/(.+)$/);
+  const rv = document.getElementById('rosterView'), pv = document.getElementById('playerView');
+  if (m) { rv.classList.add('hidden'); pv.classList.remove('hidden'); renderPlayer(m[1]); window.scrollTo(0, 0); }
+  else { pv.classList.add('hidden'); rv.classList.remove('hidden'); }
+}
+window.addEventListener('hashchange', route);
+renderRoster(''); route();
+</script></body></html>
