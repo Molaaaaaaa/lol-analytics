@@ -322,7 +322,7 @@ footer{border-top:1px solid var(--line);padding:16px 18px 40px;color:var(--muted
         같은 사람 판을 무작위 반으로 갈라 두 번 순위를 매겨보면 두 순위의 상관이
         각각 <b>−0.30 · −0.20 · +0.01</b> 로 나옵니다 — 앞쪽 절반에서 잘 나온 사람이
         뒤쪽 절반에서 오히려 못 나온다는 뜻이고, 순위로 팔 수 있는 숫자가 아닙니다.
-        세 값 모두 각자의 페이지에는 신뢰구간과 함께 그대로 있습니다.</p>
+        던진 판·뒤집은 판은 각자의 페이지에 신뢰구간과 함께 남아 있고, 승률은 카드와 개인 페이지 머리에 있습니다.</p>
       </details>
       <div id="h2hOut" style="margin-top:18px"></div>
     </div>
@@ -602,7 +602,7 @@ const behindN = p => (p.cb||{}).behind_n;
 // 같은 사람 판을 무작위 반씩 갈라 두 순위를 만들었을 때의 Spearman 상관이다.
 // 승률(-0.299) · 던진 판(-0.199) · 뒤집은 판(+0.012) 은 신호가 없어 아예 뺐다.
 const REL = {gpm:.876, skpg:.869, cspm:.846, dpg:.815, kp:.803, dpm:.802, vs:.756,
-             kda:.697, sdpg:.659, ldc:.650, snet:.624, dead:.581, ldg:.382, fb:.310};
+             kda:.697, sdpg:.659, ldc:.650, snet:.624, dead:.581, streak:.41, ldg:.382, fb:.310};
 const METRICS = [
   // 위쪽일수록 잘 재현되는 지표다(REL 참고). 분당 골드·판당 데스는 측정만 해놓고
   // 순위표에 안 넣고 있었다 — 재현성 0.876 / 0.815 로 가장 믿을 만한 둘이다.
@@ -613,8 +613,9 @@ const METRICS = [
   {k:'cspm', l:'분당 CS', f:p=>p.cspm, u:'', hi:true, rf:r=>r.cspm},
   {k:'dpm', l:'분당 딜', f:p=>p.dpm, u:'', hi:true, rf:r=>r.dpm},
   {k:'vs', l:'시야 점수', f:p=>p.vs, u:'', hi:true, rf:r=>r.vs},
-  {k:'ldg', l:'15분 골드 격차', f:p=>((p.ld||{}).m15||{}).gold, u:'G', hi:true},
-  {k:'ldc', l:'15분 CS 격차', f:p=>((p.ld||{}).m15||{}).cs, u:'', hi:true},
+  // 라인 탭에서는 ld.by_role 에서 그 라인 값만 읽는다(rf 는 roles[] 를 받으므로 별도 처리)
+  {k:'ldg', l:'15분 골드 격차', f:p=>((p.ld||{}).m15||{}).gold, u:'G', hi:true, ldRole:'gold'},
+  {k:'ldc', l:'15분 CS 격차', f:p=>((p.ld||{}).m15||{}).cs, u:'', hi:true, ldRole:'cs'},
   {k:'dead', l:'죽어 있던 시간 — 2~20분, 최근 150판 (낮을수록 좋음)',
    f:p=>((p.fun||{}).dead||{}).pct, u:'%', hi:false, nf:p=>((p.fun||{}).dead||{}).n},
   {k:'streak', l:'최장 연승 (운으로 나올 기대치 대비)', u:'', hi:true,
@@ -649,7 +650,9 @@ let lbRole = '전체';
 })();
 const lbTabs = document.getElementById('lbTabs');
 ROLE_TABS.forEach(r=>{
-  const n = r==='전체' ? D.players.length : D.players.filter(p=>p.role===r).length;
+  // 배지 숫자는 그 탭에서 실제로 보게 될 인원 — 주 라인이 아니어도 20판 이상이면 들어온다
+  const n = r==='전체' ? D.players.length
+    : D.players.filter(p=>(p.roles||[]).some(x=>x.r===r && x.n>=20)).length;
   if (r!=='전체' && !n) return;
   const b=document.createElement('button');
   b.type='button'; b.dataset.role=r; b.setAttribute('role','tab');
@@ -667,21 +670,35 @@ function renderRank(){
   const want = lbRole;
   const total = D.players.length;
 
-  // 라인만 보기 = 사람만 거르는 게 아니라 **그 라인 판만으로 다시 잰 값**을 쓴다.
-  // 주 라인 비중이 38%인 사람을 전 라인 평균으로 정글 표에 올리면 순위가 뒤집힌다.
+  // 라인 탭 = 그 라인을 20판 이상 한 **모든 사람**을, 그 라인 판만으로 다시 잰 값으로.
+  // 예전에는 '주 라인이 그 라인인 사람'만 넣었다. 그래서 원딜을 29판 한 미드 유저가
+  // 원딜 표에서 통째로 빠졌고, 5탭×10지표 50조합 중 14조합에서 1등이 뒤집혔다.
+  // (원딜 분당골드 실제 1등 545 가 화면에는 530 으로, 원딜 솔킬수지는 부호까지 반대로)
+  const MIN_ROLE_N = 20;
   let rows;
-  if (onlyRole && m.rf) {
-    rows = D.players.filter(p=>p.role===want).map(p=>{
+  if (onlyRole && m.ldRole) {
+    // 15분 격차는 roles[] 가 아니라 ld.m15.by_role 에 라인별 값이 있다
+    rows = D.players.map(p=>{
+      const br = (((p.ld||{}).m15||{}).by_role||{})[want];
+      return br ? {p, v:br[m.ldRole], n:br.n, scoped:true, offMain: p.role!==want} : null;
+    }).filter(r=>r && r.v!=null && !isNaN(r.v) && r.n>=MIN_ROLE_N);
+  } else if (onlyRole && m.rf) {
+    rows = D.players.map(p=>{
       const rr = (p.roles||[]).find(x=>x.r===want);
-      return rr ? {p, v:m.rf(rr), n:rr.n, scoped:true} : null;
-    }).filter(r=>r && r.v!=null && !isNaN(r.v) && r.n>=20);
+      return rr ? {p, v:m.rf(rr), n:rr.n, scoped:true, offMain: p.role!==want} : null;
+    }).filter(r=>r && r.v!=null && !isNaN(r.v) && r.n>=MIN_ROLE_N);
   } else {
     rows = D.players.map(p=>({p, v:m.f(p)})).filter(r=>r.v!=null && !isNaN(r.v));
     if (onlyRole) rows = rows.filter(r=>r.p.role===want);
     rows.forEach(r=>{ r.n = m.nf ? m.nf(r.p) : r.p.n; });
     rows = rows.filter(r=>r.n);
   }
-  const pool = onlyRole ? D.players.filter(p=>p.role===want).length : total;
+  // 후보 수도 같은 기준으로 세야 '몇 명을 뺐는지'가 맞는다
+  const pool = !onlyRole ? total
+    : (m.ldRole ? D.players.filter(p=>{
+          const br = (((p.ld||{}).m15||{}).by_role||{})[want]; return br && br.n>=MIN_ROLE_N; }).length
+    : m.rf ? D.players.filter(p=>(p.roles||[]).some(x=>x.r===want && x.n>=MIN_ROLE_N)).length
+           : D.players.filter(p=>p.role===want).length);
   const dropped = pool - rows.length;
 
   // 비율 지표(승률·던진 판·뒤집은 판)를 윌슨 구간으로 정렬하던 분기가 있었지만,
@@ -712,14 +729,15 @@ function renderRank(){
   // 라인은 별도 열로. 닉네임 옆 배지로는 포지션이 눈에 안 들어왔다.
   // 주 라인만 적으면 '미드 유저의 원딜 판'이 섞여 있다는 사실이 숨는다 -> 비중을 같이 적는다.
   const lnCell = r => {
-    if (r.scoped) return '<td class="ln">'+esc(want)+' <small>판만</small></td>';
+    if (r.scoped) return '<td class="ln">'+esc(want)+' <small>판만'+
+      (r.offMain ? ' · 주 '+esc(r.p.role) : '')+'</small></td>';
     const sh = r.p.role_share;
     return '<td class="ln">'+esc(r.p.role)+
       (sh!=null && sh<85 ? ' <small>'+Math.round(sh)+'%</small>' : '')+'</td>';
   };
   out.innerHTML = '<table class="lb"><thead><tr><th></th><th>닉네임</th><th>라인</th>'+
     '<th style="text-align:right">'+esc(m.l)+'</th><th style="text-align:right">'+
-    ((m.nf || (m.rf && onlyRole)) ? '표본' : '판수')+'</th></tr></thead><tbody>'+
+    ((m.nf || ((m.rf || m.ldRole) && onlyRole)) ? '표본' : '판수')+'</th></tr></thead><tbody>'+
     rows.map(r=>'<tr><td class="rk">'+r.rk+'</td>'+
       '<td class="nm" data-id="'+r.p.id+'">'+esc(r.p.name)+'</td>'+
       lnCell(r)+
@@ -728,10 +746,11 @@ function renderRank(){
     '</tbody></table>';
 
   let note;
-  if (onlyRole && m.rf) {
+  if (onlyRole && (m.rf || m.ldRole)) {
     note = esc(want)+' 판만 따로 집계한 값입니다(20판 이상). 전 라인 평균이 아닙니다.';
   } else if (onlyRole) {
-    note = esc(want)+' 포지션인 사람만 골랐습니다. 다만 수치 자체는 그 사람의 <b>전 라인 평균</b>입니다.';
+    note = esc(want)+'를 주 라인으로 하는 사람만 골랐습니다. 이 지표는 라인별로 나눌 수 없어 '+
+      '<b>수치 자체는 그 사람의 전 라인 값</b>입니다.';
   } else if (ROLE_SENSITIVE.has(m.k)) {
     note = '⚠ 라인이 섞여 있습니다. 이 지표는 포지션마다 기준이 달라 그대로 비교하면 안 됩니다. 위에서 라인 탭을 골라 보세요.';
   } else {
@@ -753,7 +772,7 @@ function renderRank(){
       '데스 수가 같다면 피솔킬 1회가 팀 데스 1회보다 더 나쁘지는 않습니다(실측). '+
       '서포터는 피솔킬 중 맞라이너에게 당한 비중이 12.6%뿐이라 라인전 지표로 읽으면 안 됩니다.</p>';
   if (!onlyRole && rows.some(r=>r.p.role_share!=null && r.p.role_share<85))
-    more += '<p>라인 옆 %는 주 라인 비중입니다 — 100%가 아니면 다른 라인 판이 섞인 값입니다.</p>';
+    more += '<p>라인 옆 %는 주 라인 비중입니다(85% 이상이면 생략). 그 비율만큼만 그 라인 판입니다.</p>';
   document.getElementById('lbNote').innerHTML = note +
     (more ? '<details class="lbwhy" style="margin-top:6px;padding-top:6px">'+
       '<summary>이 지표를 읽는 법</summary>'+more+'</details>' : '');
@@ -890,14 +909,24 @@ function renderPlayer(id) {
       box('많이 한 챔피언', bars(p.champs, {mode: 'volume'})) +
       box('라인 분포', bars(p.roles.map(r => ({l: r.r, n: r.n, wr: r.wr})), {mode: 'volume'})) + '</div>' +
     (function () {
-      const L = (p.ld || {}).m15 || (p.ld || {}).m10;
-      if (!L) return '<h2 id="lane">맞라인 상대</h2>';
+      const ALL = (p.ld || {}).m15 || (p.ld || {}).m10;
+      if (!ALL) return '<h2 id="lane">맞라인 상대</h2>';
+      // 전 라인을 합친 값을 주 라인 값처럼 보여주면 안 된다 — 부주 라인 판이 섞이면
+      // 최대 4.5배까지 왜곡되고 부호가 뒤집히기도 한다. 주 라인 값이 있으면 그걸 쓴다.
+      const byRole = ALL.by_role || {};
+      const L = byRole[p.role] || ALL;
+      const scoped = !!byRole[p.role];
       const c = v => v > 0 ? 'var(--good)' : (v < 0 ? 'var(--bad)' : 'var(--ink)');
       const sg = v => (v > 0 ? '+' : '') + v;
       const mn = (p.ld || {}).m15 ? 15 : 10;
       return '<h2 id="lane">맞라인 상대</h2>' +
-        '<div class="box"><h3>' + mn + '분 라인전 격차</h3>' +
-        '<p class="note">같은 경기 맞라이너와의 차이입니다. 티어·메타가 자동으로 통제되는 가장 공정한 지표입니다.</p>' +
+        '<div class="box"><h3>' + mn + '분 라인전 격차' +
+        (scoped ? ' <span style="font-weight:400;color:var(--muted);font-size:12px">· ' +
+          esc(p.role) + ' 판만</span>' : '') + '</h3>' +
+        '<p class="note">같은 경기 맞라이너와의 차이입니다. 티어·메타가 자동으로 통제되는 가장 공정한 지표입니다.' +
+        (scoped && ALL.n > L.n
+          ? ' 다른 라인 ' + (ALL.n - L.n) + '판은 기준이 달라 뺐습니다.'
+          : '') + '</p>' +
         '<div class="ld">' +
         '<div class="ldc"><div class="v" style="color:' + c(L.cs) + '">' + sg(L.cs) + '</div>' +
           '<div class="k">CS 차이</div></div>' +
@@ -991,7 +1020,7 @@ function renderPlayer(id) {
       '<div class="rec' + (r.hero ? ' hero' : '') + '"><div class="rl">' + esc(r.label) + '</div>' +
       '<div class="rv">' + r.value.toLocaleString() + '<span style="font-size:12px">' +
       esc(r.unit || '') + '</span></div>' +
-      '<div class="rm" data-when="' + esc(r.when) + '">' + esc(r.champ) + ' · ' + esc(r.when) +
+      '<div class="rm" data-mid="' + esc(r.mid || '') + '">' + esc(r.champ) + ' · ' + esc(r.when) +
       (r.win ? ' · 승' : ' · 패') + '</div></div>').join('');
     h = h.replace('<h2 id="ch">', '<h2 id="hof">명예의 전당</h2><div class="hof">' + hof +
       '</div><p class="muted">최고 기록은 판수가 많을수록 커집니다. 판수와 함께 보세요.' +
@@ -1122,7 +1151,7 @@ function renderPlayer(id) {
       '<p class="muted">2~20분 동안 죽어 있던 시간 비율입니다' +
       (DS.n ? ' (최근 ' + DS.n + '판 기준)' : '') + '. 낮을수록 좋습니다. ' +
       '20분 이후는 안 셉니다 — 전 구간으로 재면 이 값보다 커집니다.</p>' +
-      bars((DS.curve || []).filter(c => c.m % 4 === 0).map(c =>
+      bars((DS.curve || []).filter(c => c.m % 2 === 0).map(c =>
         ({l: c.m + '분', wr: c.v})), {mode: 'plain', max: 30}));
   }
   if ((F.clock || []).length) {
@@ -1169,10 +1198,16 @@ function renderPlayer(id) {
       '</div>';
   }
 
+  // 제목이 '고칠 점' 인데 칭찬 문장이 섞여 있었다. 두 묶음으로 나눈다.
+  const fbAll = (p.fb || []).map(t => t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'));
+  const good = fbAll.filter(t => t.indexOf('👍') === 0);
+  const work = fbAll.filter(t => t.indexOf('👍') !== 0);
   h += '<h2 id="fb">고칠 점</h2>';
-  h += (p.fb && p.fb.length)
-    ? p.fb.map(t => '<div class="fb">' + t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>') + '</div>').join('')
+  h += work.length ? work.map(t => '<div class="fb">' + t + '</div>').join('')
     : '<p class="muted">표본이 더 쌓이면 제공됩니다.</p>';
+  if (good.length)
+    h += '<h3 style="margin:18px 0 8px;font-size:14px">잘하고 있는 것</h3>' +
+      good.map(t => '<div class="fb">' + t + '</div>').join('');
 
   // ---- 챔피언 보정 표 ----
   const Z = (p.zs || []).filter(z => z.pct_raw != null);
@@ -1198,7 +1233,7 @@ function renderPlayer(id) {
       if (drv.length && Math.abs(mv) >= 4) {
         r += '<tr><td class="why" colspan="5">↳ ' +
           drv.map(x => esc(x.champ) + ' ' + x.n + '판').join(' · ') +
-          ' 때문에 기대치가 ' + (mv > 0 ? '낮' : '높') + '게 잡힙니다</td></tr>';
+          ' 때문에 기대치가 ' + (drv[0].share < 0 ? '낮' : '높') + '게 잡힙니다</td></tr>';
       }
       return r;
     }).join('');
@@ -1264,10 +1299,14 @@ function renderPlayer(id) {
 
   // 명예의 전당 카드 클릭 → 같은 날짜 경기로 스크롤 + 강조
   v.querySelectorAll('.rec').forEach(card => {
-    const when = (card.querySelector('[data-when]') || {}).dataset?.when;
-    if (!when) return;
-    const hit = (p.recent || []).find(g => g.d === when);
-    if (!hit) return;                    // 최근 목록에 없는 옛 기록은 클릭 대상이 아니다
+    // 예전에는 날짜만으로 경기를 찾았다. 하루에 2~10판을 하니 그날의 첫 경기가 잡혀서
+    // 42개 클릭 중 15개가 다른 경기를 강조했다(46분 카드가 27분 경기를, 최속 '승리' 카드가 '패' 행을).
+    // 이제 생성기가 실어 보내는 경기 id 로 정확히 연결한다.
+    const el0 = card.querySelector('[data-mid]');
+    const mid = el0 ? el0.dataset.mid : '';
+    if (!mid) return;
+    const hit = (p.recent || []).find(g => g.id === mid);
+    if (!hit) return;                    // 최근 20판 밖의 옛 기록은 이동할 곳이 없다
     card.style.cursor = 'pointer';
     card.title = '이 경기로 이동';
     card.onclick = () => {

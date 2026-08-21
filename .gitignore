@@ -7,3 +7,9 @@ riot_cache/
 *.duckdb
 __pycache__/
 .DS_Store
+
+# 검증용 도구 — 저장소에 넣을 것이 아니다
+# (jsdom 으로 헤드리스 렌더링해서 화면을 확인한다. npm install jsdom --no-save)
+node_modules/
+package-lock.json
+_*.js
