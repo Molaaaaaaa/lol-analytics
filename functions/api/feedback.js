@@ -69,8 +69,11 @@ export async function onRequestPost({ request, env }) {
   }
 
   const isSlack = /hooks\.slack\.com/.test(hook);
+  // body 는 코드펜스 안이라 안전한데 who 는 펜스 밖에 그대로 렌더된다.
+  // 그대로 두면 보낸 사람 칸에 [클릭](http://악성) 같은 링크를 심을 수 있다.
+  const safeWho = String(who).replace(/[\[\]()*_~`>|#\\]/g, "").slice(0, 40);
   const text =
-    `**[${kind}]** ${who}\n` +
+    `**[${kind}]** ${safeWho}\n` +
     (page ? `\`${page}\`\n` : "") +
     "```\n" + body.replace(/```/g, "'''") + "\n```";
   const payload = isSlack

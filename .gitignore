@@ -12,4 +12,8 @@ __pycache__/
 # (jsdom 으로 헤드리스 렌더링해서 화면을 확인한다. npm install jsdom --no-save)
 node_modules/
 package-lock.json
-_*.js
+# 예전엔 `_*.js` 였는데 하위 경로까지 걸려서 Cloudflare Pages Functions 의
+# 예약 파일명(functions/_middleware.js)과 공용 모듈(functions/api/_riot.js)을
+# 조용히 삼켰다. 커밋한 사람은 로컬에서 잘 돌아가니 알아채기 어렵다.
+# 검증용 임시 스크립트는 루트에만 만들므로 루트로 한정한다.
+/_*.js
