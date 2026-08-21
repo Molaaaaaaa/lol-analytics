@@ -463,7 +463,7 @@ function cardHTML(p, showForm) {
   const w = p.form.slice(-10).filter(Boolean).length, g = p.form.slice(-10).length;
   const tip = p.name + '#' + p.tag + ' · ' + p.role + ' · ' + p.n + '판 · 승률 ' + p.wr +
     '% · KDA ' + p.kda + ' · 관여 ' + p.kp + '%' + (g ? ' · 최근 ' + g + '판 ' + w + '승' : '');
-  return '<button class="card" data-id="' + p.id + '" title="' + esc(tip) + '">' +
+  return '<button class="card" data-id="' + esc(p.id) + '" title="' + esc(tip) + '">' +
     '<div class="cn"><span>' + esc(p.name) + '</span>' +
       '<span class="wrbig" style="color:var(--ink2)">' +
       p.wr + '%</span></div>' +
@@ -644,8 +644,12 @@ const METRICS = [
   {k:'dpm', l:'분당 딜', f:p=>p.dpm, u:'', hi:true, dp:0, rf:r=>r.dpm},
   {k:'vs', l:'시야 점수', f:p=>p.vs, u:'', hi:true, rf:r=>r.vs},
   // 라인 탭에서는 ld.by_role 에서 그 라인 값만 읽는다(rf 는 roles[] 를 받으므로 별도 처리)
-  {k:'ldg', l:'15분 골드 격차', f:p=>((p.ld||{}).m15||{}).gold, u:'G', hi:true, dp:0, ldRole:'gold'},
-  {k:'ldc', l:'15분 CS 격차', f:p=>((p.ld||{}).m15||{}).cs, u:'', hi:true, ldRole:'cs'},
+  // nf 가 없으면 전체 탭 표본이 총 판수(p.n)로 찍힌다. 이 지표는 15분 프레임이
+  // 남은 판만 쓰므로 1판씩 어긋났다(정준토 563 vs 실제 562).
+  {k:'ldg', l:'15분 골드 격차', f:p=>((p.ld||{}).m15||{}).gold, u:'G', hi:true, dp:0,
+   ldRole:'gold', nf:p=>((p.ld||{}).m15||{}).n},
+  {k:'ldc', l:'15분 CS 격차', f:p=>((p.ld||{}).m15||{}).cs, u:'', hi:true,
+   ldRole:'cs', nf:p=>((p.ld||{}).m15||{}).n},
   // '최근 150판' 을 라벨에 박아 뒀는데 실제로 150판을 채운 사람은 19명 중 하나뿐이라
   // 표본 칸의 숫자와 대놓고 어긋났다. 정확한 숫자는 표본 칸에 맡긴다.
   {k:'dead', l:'죽어 있던 시간 — 2~20분, 최근 150판까지 (낮을수록 좋음)',
@@ -673,7 +677,7 @@ let lbRole = '전체';
 // 제목을 눌러도 목록으로 — '← 전체 목록' 버튼만으로는 돌아갈 길이 하나뿐이었다.
 (function () {
   const a = document.getElementById('homeLink');
-  if (a) a.onclick = e => { e.preventDefault(); location.hash = '';
+  if (a) a.onclick = e => { e.preventDefault(); showTab(false); location.hash = '';
     window.scrollTo({top: 0, behavior: 'smooth'}); };
 })();
 const lbTabs = document.getElementById('lbTabs');
@@ -701,7 +705,6 @@ function renderRank(){
   const m = METRICS.find(x=>x.k===mSel.value)||METRICS[0];
   const onlyRole = lbRole !== '전체';
   const want = lbRole;
-  const total = D.players.length;
 
   // 라인 탭 = 그 라인을 20판 이상 한 **모든 사람**을, 그 라인 판만으로 다시 잰 값으로.
   // 예전에는 '주 라인이 그 라인인 사람'만 넣었다. 그래서 원딜을 29판 한 미드 유저가
@@ -728,10 +731,15 @@ function renderRank(){
     rows = D.players.map(p=>({p, v:m.f(p)})).filter(r=>r.v!=null && !isNaN(r.v));
     if (onlyRole) rows = rows.filter(r=>r.p.role===want);
     rows.forEach(r=>{ r.n = m.nf ? m.nf(r.p) : r.p.n; });
-    rows = rows.filter(r=>r.n);
+    // 전체 탭에는 최소 표본이 없어서, 판수가 아주 적은 사람이 들어오면 14개 지표
+    // 전부에서 1위로 올라온다(라인 탭은 이미 20판으로 막고 있었다). 기준을 맞춘다.
+    // 지금 데이터의 최소 표본은 46판이라 아무도 안 빠지지만, 로스터는 10판부터
+    // 받으므로 언제든 생길 수 있는 구멍이다. 빠진 인원은 아래 dropped 로 고지된다.
+    rows = rows.filter(r=>r.n >= MIN_ROLE_N);
   }
   // 후보 수도 같은 기준으로 세야 '몇 명을 뺐는지'가 맞는다
-  const pool = !onlyRole ? total
+  const pool = !onlyRole ? D.players.filter(p=>{
+        const n = m.nf ? m.nf(p) : p.n; return n != null && n >= MIN_ROLE_N; }).length
     : (m.ldRole ? D.players.filter(p=>{
           const br = (((p.ld||{}).m15||{}).by_role||{})[want]; return br && br.n>=MIN_ROLE_N; }).length
     : m.rf ? D.players.filter(p=>(p.roles||[]).some(x=>x.r===want && x.n>=MIN_ROLE_N)).length
@@ -776,8 +784,13 @@ function renderRank(){
   };
   // 마지막 열 이름이 탭마다 판수/표본/전 라인 표본으로 바뀌어 같은 열이 다른 것처럼
   // 보였다. 이름은 '표본' 하나로 두고 무엇의 표본인지는 title 로 설명한다.
-  const nTip = (m.rf || m.ldRole) && onlyRole ? want + ' 판 수'
-    : m.nf ? '이 지표가 실제로 쓴 경기 수(총 판수가 아닙니다)' : '집계에 쓴 총 판수';
+  // m.nf 를 먼저 봐야 한다. 순서가 반대였을 때 '죽어 있던 시간'의 라인 탭 표본이
+  // 131(최근 150판 안의 미드 판)인데 설명은 '미드 판 수'(=493)를 가리켰다.
+  const nTip = m.nf
+    ? (onlyRole ? want + ' 판 중 이 지표가 실제로 쓴 경기 수'
+                : '이 지표가 실제로 쓴 경기 수(총 판수가 아닙니다)')
+    : (m.rf || m.ldRole) && onlyRole ? want + ' 판 수'
+    : '집계에 쓴 총 판수';
   out.innerHTML = '<table class="lb"><thead><tr>'+
     '<th><span class="sr">순위</span></th><th>닉네임</th><th>라인</th>'+
     '<th style="text-align:right">'+esc(m.l)+'</th>'+
@@ -882,6 +895,12 @@ function renderH2H(){
 }
 mSel.onchange=renderRank;
 function showTab(rank){
+  // 순위표는 검색을 반영하지 않는다. 검색어를 남겨 두면 걸러진 표처럼 읽히므로 비운다
+  // (숨겨진 목록 쪽에 '검색 결과가 없습니다'가 남아 있다가 되돌아올 때 튀어나오는 것도 막는다).
+  if (rank) {
+    const sb = document.getElementById('search');
+    if (sb && sb.value) { sb.value = ''; renderRoster(''); }
+  }
   document.getElementById('paneRank').classList.toggle('hidden', !rank);
   document.getElementById('paneList').classList.toggle('hidden', rank);
   document.getElementById('tabRank').setAttribute('aria-selected', rank);
@@ -969,6 +988,9 @@ function renderPlayer(id) {
   const p = D.players.find(x => x.id === id);
   if (!p) { location.hash = ''; return; }
   const o = p.obj || {};
+  // '주 라인'은 문자열인데 그동안 맨몸으로 innerHTML 에 들어갔다(같은 함수의
+  // 다른 곳은 esc(p.role) 을 쓴다). '숫자니까 괜찮다'는 예외를 두면 이렇게 섞인다 —
+  // 아래 렌더에서 값 전체를 esc() 한다.
   const kpi = [['판수', p.n + '판'], ['승률', p.wr + '%'], ['주 라인', p.role],
                ['KDA', p.kda], ['킬 관여율', p.kp + '%'], ['분당 CS', p.cspm],
                ['시야 점수', p.vs], ['분당 딜', p.dpm]];
@@ -985,11 +1007,21 @@ function renderPlayer(id) {
     '<div class="jump">' + jumps.map(j =>
       '<button data-go="' + j[0] + '">' + j[1] + '</button>').join('') + '</div>' +
     '<div class="kpis">' + kpi.map(k =>
-      '<div class="kpi"><div class="kl">' + k[0] + '</div><div class="kv">' + k[1] + '</div></div>'
+      '<div class="kpi"><div class="kl">' + esc(k[0]) + '</div><div class="kv">' +
+      esc(String(k[1])) + '</div></div>'
     ).join('') + '</div>' +
     '<h2 id="ch">챔피언</h2><div class="grid2">' +
-      box('많이 한 챔피언', bars(p.champs, {mode: 'volume'})) +
-      box('라인 분포', bars(p.roles.map(r => ({l: r.r, n: r.n, wr: r.wr})), {mode: 'volume'})) + '</div>' +
+      // 상위 10개만 그리면서 그 말이 없어서, 114판 중 66판만 보이는데 위 KPI 는
+      // '114판'이라고 크게 적혀 있었다. 두 숫자가 정면으로 충돌한다.
+      (function(){
+        const shown = (p.champs || []).reduce((a, c) => a + (c.n || 0), 0);
+        const rest = p.n - shown;
+        return box('많이 한 챔피언', bars(p.champs, {mode: 'volume'}) +
+          (rest > 0 ? '<p class="muted" style="margin:6px 0 0">많이 한 순서로 ' +
+            (p.champs || []).length + '개만 보여줍니다. 나머지 ' + rest +
+            '판은 여기 없습니다 (전체 ' + p.n + '판).</p>' : ''));
+      })() +
+      box('라인 분포', bars((p.roles || []).map(r => ({l: r.r, n: r.n, wr: r.wr})), {mode: 'volume'})) + '</div>' +
     (function () {
       const ALL = (p.ld || {}).m15 || (p.ld || {}).m10;
       if (!ALL) return '<h2 id="lane">맞라인 상대</h2>';
@@ -1006,9 +1038,15 @@ function renderPlayer(id) {
         (scoped ? ' <span style="font-weight:400;color:var(--muted);font-size:12px">· ' +
           esc(p.role) + ' 판만</span>' : '') + '</h3>' +
         '<p class="note">같은 경기 맞라이너와의 차이입니다. 티어·메타가 자동으로 통제되는 가장 공정한 지표입니다.' +
-        (scoped && ALL.n > L.n
-          ? ' 다른 라인 ' + (ALL.n - L.n) + '판은 기준이 달라 뺐습니다.'
-          : '') + '</p>' +
+        // 예전에는 (ALL.n - L.n) 만 적어서, 15분 기록이 없는 판이 말없이 하나 더
+        // 빠진 것을 설명하지 못했다 — 563 − 492 = 71 인데 화면은 70 이라고 했다.
+        // 빠진 이유를 둘로 나눠 적어 눈으로 합이 맞게 한다.
+        (function(){
+          const cut = [];
+          if (scoped && ALL.n > L.n) cut.push('다른 라인 ' + (ALL.n - L.n) + '판');
+          if (p.n > ALL.n) cut.push(mn + '분 기록이 없는 ' + (p.n - ALL.n) + '판');
+          return cut.length ? ' 전체 ' + p.n + '판 중 ' + cut.join(' · ') + '은 기준이 달라 뺐습니다.' : '';
+        })() + '</p>' +
         '<div class="ld">' +
         '<div class="ldc"><div class="v" style="color:' + c(L.cs) + '">' + sg(L.cs) + '</div>' +
           '<div class="k">CS 차이</div></div>' +
@@ -1026,9 +1064,13 @@ function renderPlayer(id) {
       const E = p.champ_eff || [], M = p.champ_eff_meta || {};
       if(!E.length) return box('챔피언 궁합', '<p class="muted">아직 판수가 모자라요.</p>');
       // 아군과 적을 한 목록에 섞어 놓으면 '진영' 배지를 매 줄 읽어야 한다. 좌우로 나눈다.
+      // 카드의 %p 는 표본을 내 평균 쪽으로 당긴 값(베이즈 축소)이고, 바로 아래
+      // '챔피언별 승률' 막대는 원승률이다. 같은 챔피언·같은 판수인데 숫자가 둘이라
+      // 사용자는 '내 평균 + %p' 로 계산해 막대와 안 맞는 값을 얻었다(최대 14.1%p).
+      // 원승률을 같이 적어 두 숫자가 같은 판을 가리키는 것을 보이게 한다.
       const row = r =>
         '<div class="effrow' + (r.sig ? '' : ' dim') + '">' +
-        '<span>' + esc(r.l) + ' <span class="sd">' + r.n + '판</span></span>' +
+        '<span>' + esc(r.l) + ' <span class="sd">' + r.n + '판 · 실제 ' + r.wr + '%</span></span>' +
         '<span class="df" style="color:' + (r.diff >= 0 ? 'var(--good)' : 'var(--bad)') + '">' +
         (r.diff >= 0 ? '+' : '') + r.diff + '%p</span></div>';
       const side = (want, title, empty) => {
@@ -1044,7 +1086,8 @@ function renderPlayer(id) {
         '</div>' +
         '<p class="muted" style="margin:-6px 0 14px">+%p 는 그 챔피언이 있을 때 내 승률이 ' +
         '평소보다 얼마나 높았는지입니다. 표본이 적으면 내 평균 쪽으로 당겨서 계산했고' +
-        '(베이즈 축소), 흐릿한 줄은 우연일 수 있는 차이입니다.' +
+        '(베이즈 축소) — 그래서 여기 %p 를 내 평균에 더해도 옆의 「챔피언별 승률」 막대와 다릅니다. ' +
+        '괄호 안 <b>실제</b> 가 그 막대와 같은 원승률입니다. 흐릿한 줄은 우연일 수 있는 차이입니다.' +
         (M.few_games ? ' 판수가 모자란 조합 ' + M.few_games + '건은 숨겼습니다.' : '') +
         // 예전에는 '우연 범위인 조합 N건은 숨겼습니다' 라고만 적었는데, 유의한 줄이
         // 부족하면 폴백으로 보여주는 줄들도 전부 우연 범위였다. 그래 놓고 '숨겼다'고
@@ -1081,9 +1124,24 @@ function renderPlayer(id) {
         '표본이 작아 구간이 넓으니 한 자릿수 차이는 의미가 없습니다.</p></div>';
     })() +
     '<div class="grid2">' +
-      box('획득 용 수별 승률', bars((o.dragon_count || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
-      box('첫 용 획득 시점별 승률', bars((o.first_dragon_time || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
-      box('첫 용 속성별 승률', bars((o.first_dragon_element || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
+      // 이 세 상자는 구간이 그 사람의 판수를 남김없이 덮어야 하는데, 6판 미만인 구간을
+      // 말없이 지우고 있었다. '용 4마리+(영혼)' 구간이 통째로 사라져 화면이 '영혼을
+      // 먹어 본 적이 없다'고 말하거나, 첫 용 24판 중 6판만 남아 '늘 대지용이었다'고
+      // 읽히는 일이 실제로 있었다. 뺀 판수를 상자 밑에 적는다.
+      (function(){
+        const dp = o.dropped || {};
+        const cut = k => dp[k] ? '<p class="muted" style="margin:6px 0 0">표본 6판 미만이라 ' +
+          dp[k] + '판은 뺐습니다.</p>' : '';
+        return box('획득 용 수별 승률',
+            bars((o.dragon_count || []).map(r => ({l: r.label, n: r.n, wr: r.winrate}))) +
+            cut('dragon_count')) +
+          box('첫 용 획득 시점별 승률',
+            bars((o.first_dragon_time || []).map(r => ({l: r.label, n: r.n, wr: r.winrate}))) +
+            cut('first_dragon_time')) +
+          box('첫 용 속성별 승률',
+            bars((o.first_dragon_element || []).map(r => ({l: r.label, n: r.n, wr: r.winrate}))) +
+            cut('first_dragon_element'));
+      })() +
       (function(){
         const dr = o.firsts_dropped || {};
         const ks = Object.keys(dr);
@@ -1092,7 +1150,10 @@ function renderPlayer(id) {
           (ks.length ? '<p class="muted">표본이 모자라 뺀 줄: ' +
             ks.map(k => esc(k) + ' ' + dr[k] + '판').join(' · ') + '</p>' : ''));
       })() +
-      box('공허 유충 획득 시 승률', bars((o.horde_bin || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
+      box('공허 유충 획득 시 승률',
+        bars((o.horde_bin || []).map(r => ({l: r.label, n: r.n, wr: r.winrate}))) +
+        ((o.dropped || {}).horde_bin ? '<p class="muted" style="margin:6px 0 0">표본 6판 미만이라 ' +
+          o.dropped.horde_bin + '판은 뺐습니다.</p>' : '')) +
       (function(){
         const cb2 = p.cb || {}, rows2 = cb2.by_lead15 || [];
         const lost = (cb2.lead15_total || 0) - (cb2.lead15_shown || 0);
@@ -1130,7 +1191,8 @@ function renderPlayer(id) {
   if ((F.hof || []).length) {
     const hof = F.hof.map(r =>
       '<div class="rec' + (r.hero ? ' hero' : '') + '"><div class="rl">' + esc(r.label) + '</div>' +
-      '<div class="rv">' + r.value.toLocaleString() + '<span style="font-size:12px">' +
+      '<div class="rv">' + (r.value == null ? '—' : Number(r.value).toLocaleString()) +
+      '<span style="font-size:12px">' +
       esc(r.unit || {'최대 딜':'딜','최고 시야 점수':'점'}[r.label] || '') + '</span></div>' +
       '<div class="rm" data-mid="' + esc(r.mid || '') + '">' + esc(r.champ) + ' · ' + esc(r.when) +
       (r.win ? ' · 승' : ' · 패') + '</div></div>').join('');
@@ -1276,8 +1338,12 @@ function renderPlayer(id) {
       '<div><div class="muted">현재</div><div class="sbig">' + S.cur +
       (S.cur_win ? '연승' : '연패') + '</div></div></div>' +
       '<div class="grass">' + grass + '</div>' +
-      (S.expected ? '<p class="muted">이 승률·판수면 순전히 운으로도 ' + S.expected +
-        '연승 정도는 나옵니다. 그보다 훨씬 길면 진짜 상승세.</p>' : ''));
+      // 잔디는 최근 30판, 위 최장 기록은 전체 판 기준이다. 범위 표기가 없어서
+      // 19명 중 16명은 화면에 적힌 최장 연패를 잔디에서 찾을 수 없었다.
+      '<p class="muted">잔디는 최근 ' + (S.recent || []).length + '판입니다. 위 최장 기록은 전체 ' +
+      p.n + '판 기준이라 잔디 안에 없을 수 있습니다.' +
+      (S.expected ? ' 이 승률·판수면 순전히 운으로도 ' + S.expected +
+        '연승 정도는 나옵니다 — 그보다 훨씬 길면 진짜 상승세.' : '') + '</p>');
   }
   const DS = F.dead || {};
   if (DS.pct != null) {
@@ -1333,6 +1399,8 @@ function renderPlayer(id) {
       '<span class="muted">' + esc(g.d.slice(5)) + '</span></div>';
     const rNew = p.recent.filter(g => !g.old), rOld = p.recent.filter(g => g.old);
     h += '<h2 id="games">경기 목록</h2><div class="box">' +
+      '<p class="muted" style="margin:0 0 8px">최근 ' + rNew.length + '판입니다 (전체 ' +
+      p.n + '판). 전체 전적은 위 <b>조합 조회</b>에서 조건 없이 보세요.</p>' +
       '<div class="mrow" style="color:var(--muted);font-size:10.5px">' +
       '<span>결과</span><span>챔피언</span><span>KDA</span><span>CS</span><span>날짜</span></div>' +
       rNew.map(mrow).join('') +
@@ -1342,7 +1410,9 @@ function renderPlayer(id) {
   }
 
   // 제목이 '고칠 점' 인데 칭찬 문장이 섞여 있었다. 두 묶음으로 나눈다.
-  const fbAll = (p.fb || []).map(t => t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'));
+  // 이 줄만 esc() 를 안 거쳐 payload 문자열이 그대로 HTML 로 들어갔다.
+  // 패치 노트 렌더러(md)는 이미 '먼저 이스케이프, 그다음 굵게' 순서를 쓴다 — 맞춘다.
+  const fbAll = (p.fb || []).map(t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'));
   const good = fbAll.filter(t => t.indexOf('👍') === 0);
   const work = fbAll.filter(t => t.indexOf('👍') !== 0);
   h += '<h2 id="fb">고칠 점</h2>';
@@ -1420,7 +1490,8 @@ function renderPlayer(id) {
 
   const v = document.getElementById('playerView');
   v.innerHTML = h;
-  v.querySelector('#back').onclick = () => { location.hash = ''; };
+  // 버튼 글자가 '전체 목록'인데 순위 탭이 켜진 채로 돌아가 닉네임 카드가 0개였다.
+  v.querySelector('#back').onclick = () => { showTab(false); location.hash = ''; };
   v.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
     const el = document.getElementById(b.dataset.go);
     if (el) el.scrollIntoView({behavior: 'smooth', block: 'start'});
@@ -1433,7 +1504,8 @@ function renderPlayer(id) {
     const want = ids.map(i => (document.getElementById(i) || {}).value || '');
     const rows = (p.games || []).filter(g => keys.every((k, i) => !want[i] || g[k] === want[i]));
     const n = rows.length, w = rows.reduce((s, g) => s + g.w, 0);
-    const wr = n ? (w / n * 100).toFixed(1) : '—';
+    // 카드·머리·KPI·궁합이 전부 소수 2자리인데 여기만 1자리라 52.75% vs 52.8% 로 갈렸다
+    const wr = n ? (w / n * 100).toFixed(2) : '—';
     const note = n === 0 ? '<span class="muted">조건에 맞는 경기가 없습니다.</span>'
       : (n < 5 ? '<span class="muted">표본이 ' + n + '판뿐이라 승률은 참고만 하세요.</span>' : '');
     out.innerHTML = '<div class="qres"><span class="big" style="color:' +
@@ -1514,8 +1586,21 @@ function renderPlayer(id) {
 }
 function route() {
   const m = location.hash.match(/^#\/p\/(.+)$/);
+  // 예전에는 존재 확인 없이 먼저 화면을 바꿨다. 없는 id(옛 공유 링크·낡은 북마크)로
+  // 들어오면 직전에 보던 남의 페이지가 한 프레임 비쳤다가 튕겼고, 되돌리는 방식이
+  // location.hash='' (= push) 라 히스토리에 '없는 id'와 '빈 해시'가 한 쌍으로 쌓여
+  // 뒤로가기가 그 둘 사이를 오가며 영구히 먹통이 됐다. replaceState 로 지운다.
+  const p = m && D.players.find(x => x.id === m[1]);
   const rv = document.getElementById('rosterView'), pv = document.getElementById('playerView');
-  if (m) { rv.classList.add('hidden'); pv.classList.remove('hidden'); renderPlayer(m[1]); window.scrollTo(0, 0); }
+  if (m && !p) {
+    // replaceState 는 file:// 이나 about:blank 처럼 상대 URL 을 못 푸는 문서에서 던진다.
+    // 여기서 예외가 나면 route() 가 통째로 죽으니 반드시 감싼다.
+    try { history.replaceState(null, '', location.pathname + location.search); }
+    catch (e) { location.hash = ''; }
+    pv.classList.add('hidden'); rv.classList.remove('hidden');
+    return;                       // replaceState 는 hashchange 를 안 쏘므로 여기서 끝낸다
+  }
+  if (p) { rv.classList.add('hidden'); pv.classList.remove('hidden'); renderPlayer(m[1]); window.scrollTo(0, 0); }
   else { pv.classList.add('hidden'); rv.classList.remove('hidden'); }
 }
 window.addEventListener('hashchange', route);
