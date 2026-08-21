@@ -931,12 +931,12 @@ function renderPlayer(id) {
         '<p class="muted">' + L.n + '판 평균</p></div>';
     })() +
     '<div class="grid2">' +
-      box('자주 만난 맞라인 챔피언별 승률', bars(p.lane)) +
+      box('맞라인 챔피언별 승률', bars(p.lane)) +
       box('적 정글 챔피언별 승률', bars(p.ejg)) + '</div>' +
     '<h2 id="team">아군 · 적</h2>' +
     (function(){
       const E = p.champ_eff || [], M = p.champ_eff_meta || {};
-      if(!E.length) return box('아군 · 적 챔피언 궁합', '<p class="muted">아직 판수가 모자라요.</p>');
+      if(!E.length) return box('챔피언 궁합', '<p class="muted">아직 판수가 모자라요.</p>');
       // 아군과 적을 한 목록에 섞어 놓으면 '진영' 배지를 매 줄 읽어야 한다. 좌우로 나눈다.
       const row = r =>
         '<div class="effrow' + (r.sig ? '' : ' dim') + '">' +
@@ -949,9 +949,9 @@ function renderPlayer(id) {
           : '<p class="muted">' + empty + '</p>');
       };
       return '<div class="grid2">' +
-        side('아군', '같은 팀일 때 — 내 평균(' + M.base + '%) 대비',
+        side('아군', '아군일 때 — 내 평균 ' + M.base + '% 대비',
              '눈에 띄는 차이가 없습니다.') +
-        side('적', '상대로 만났을 때 — 내 평균(' + M.base + '%) 대비',
+        side('적', '적일 때 — 내 평균 ' + M.base + '% 대비',
              '눈에 띄는 차이가 없습니다.') +
         '</div>' +
         '<p class="muted" style="margin:-6px 0 14px">+%p 는 그 챔피언이 있을 때 내 승률이 ' +
@@ -987,16 +987,16 @@ function renderPlayer(id) {
         '표본이 작아 구간이 넓으니 한 자릿수 차이는 의미가 없습니다.</p></div>';
     })() +
     '<div class="grid2">' +
-      box('용을 몇 마리 먹었을 때 이겼나', bars((o.dragon_count || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
-      box('첫 용을 언제 먹었을 때 이겼나', bars((o.first_dragon_time || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
-      box('어떤 속성 용을 먹었을 때 이겼나', bars((o.first_dragon_element || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
-      box('오브젝트를 먼저 먹었을 때 승률', bars((o.firsts || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
-      box('공허 유충을 먹었을 때 승률', bars((o.horde_bin || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
+      box('획득 용 수별 승률', bars((o.dragon_count || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
+      box('첫 용 획득 시점별 승률', bars((o.first_dragon_time || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
+      box('첫 용 속성별 승률', bars((o.first_dragon_element || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
+      box('오브젝트 선취 시 승률', bars((o.firsts || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
+      box('공허 유충 획득 시 승률', bars((o.horde_bin || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
       box('15분 골드 차이별 승률', bars(((p.cb || {}).by_lead15 || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
       '</div>';
   if ((o.impact || []).length) {
     const gmax = Math.max(...(o.impact || []).map(r => Math.abs(r.gap)), 1);
-    h += box('오브젝트를 내줬을 때 손해가 큰 순서', (o.impact || []).map(r =>
+    h += box('오브젝트별 승률 차이 (획득 − 내줌)', (o.impact || []).map(r =>
       '<div class="bar"><span class="bl">' + esc(r.label) + '</span><span class="bt">' +
       '<span class="bf" style="width:' + (Math.abs(r.gap) / gmax * 100).toFixed(0) + '%"></span></span>' +
       '<span class="bv">' + (r.gap >= 0 ? '+' : '') + r.gap + '%p</span></div>').join('') +
@@ -1088,7 +1088,7 @@ function renderPlayer(id) {
         (rc[r.l] || '#888') + '">' + (r.pct >= 9 ? r.pct + '%' : '') + '</div>').join('');
       const lg2 = SD.by_role.map(r => '<span><i style="background:' + (rc[r.l] || '#888') +
         '"></i>' + esc(r.l) + ' ' + r.n + '회</span>').join('');
-      h += box('피솔킬을 누구한테 당했나', '<div class="stack">' + st2 + '</div>' +
+      h += box('피솔킬 가해자 라인', '<div class="stack">' + st2 + '</div>' +
         '<div class="legend">' + lg2 + '</div>' +
         '<p class="muted">맞라이너 ' + SD.vs_laner_pct + '% · 라인전(0~15분)에 ' + SD.lane_pct +
         '%가 몰려 있습니다. 맞라이너 비중이 높으면 라인전 문제, 정글·로밍 비중이 높으면 시야와 콜 문제입니다.</p>');
@@ -1097,7 +1097,7 @@ function renderPlayer(id) {
     // 시간 분포
     if ((SD.by_min || []).length) {
       const mx2 = Math.max(...SD.by_min.map(x => x.n), 1);
-      h += box('피솔킬을 언제 당했나', '<div class="spark">' + SD.by_min.map(x =>
+      h += box('피솔킬 시간대 분포', '<div class="spark">' + SD.by_min.map(x =>
         '<div class="sb" style="height:' + Math.round(x.n / mx2 * 100) + '%" title="' +
         x.m + '~' + (x.m + 2) + '분 · ' + x.n + '회"></div>').join('') + '</div>' +
         '<div class="spx"><span>0분</span><span>15분</span><span>30분+</span></div>' +
@@ -1138,13 +1138,13 @@ function renderPlayer(id) {
   }
   const DS = F.dead || {};
   if (DS.pct != null) {
-    h += box('죽어 있던 시간 비율', '<div class="sbig">' + DS.pct + '%</div>' +
+    h += box('죽어 있던 시간', '<div class="sbig">' + DS.pct + '%</div>' +
       '<p class="muted">2~20분 동안 죽어 있던 시간 비율입니다. 낮을수록 좋습니다.</p>' +
       bars((DS.curve || []).filter(c => c.m % 4 === 0).map(c =>
         ({l: c.m + '분', wr: c.v})), {mode: 'plain', max: 30}));
   }
   if ((F.clock || []).length) {
-    h += box('시작 시간대별 승률 (한국 시간)', bars(F.clock.map(r =>
+    h += box('시간대별 승률 (한국 시간)', bars(F.clock.map(r =>
       ({l: r.label, n: r.n, wr: r.winrate}))));
   }
   h += '</div>';
