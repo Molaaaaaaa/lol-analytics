@@ -1,6 +1,22 @@
-# 절대 커밋 금지 — API 키·전적 원본 데이터
+# ---- 비밀 ----
+# 이름 하나만 막으면 .env.bak / .env copy / .dev.vars 로 새어 나간다.
 .env
-*.env
+.env*
+!.env.example
+.dev.vars
+.dev.vars.*
+*_local.py
+config_local.py
+secrets.py
+credentials.json
+riot_api_key.txt
+*credential*
+*secret*
+*.pem
+*.key
+*.p12
+
+# 절대 커밋 금지 — API 키·전적 원본 데이터
 data/
 riot_cache/
 *.parquet

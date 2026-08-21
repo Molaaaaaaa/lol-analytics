@@ -1,8 +1,19 @@
-# Cloudflare Pages 캐시 제어
-# index.html 은 항상 최신을 받도록, 이미지는 짧게 캐시
+# Cloudflare Pages 캐시 · 보안 헤더
+
+/*
+  # 이 사이트는 자기 자신 외에는 아무것도 실행/불러오지 않는다.
+  # 예외는 Google Fonts 하나뿐이라 거기만 열어 둔다.
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=(), interest-cohort=()
+
+# 빌드가 하루 한 번이라 5분 지연은 무해하다. max-age=0 은 검증자(ETag)가 없으면
+# 매 방문마다 182KB 를 통째로 다시 받게 만든다.
 /
-  Cache-Control: public, max-age=0, must-revalidate
+  Cache-Control: public, max-age=300
 /index.html
-  Cache-Control: public, max-age=0, must-revalidate
+  Cache-Control: public, max-age=300
 /og.png
-  Cache-Control: public, max-age=600
+  Cache-Control: public, max-age=86400
