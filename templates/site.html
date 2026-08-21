@@ -685,6 +685,11 @@ ROLE_TABS.forEach(r=>{
   const b=document.createElement('button');
   b.type='button'; b.dataset.role=r; b.setAttribute('role','tab');
   b.setAttribute('aria-selected', String(r===lbRole));
+  // 홈의 '라인별로 묶기'는 주 라인 기준(합 19)인데 여기 배지는 '그 라인 20판
+  // 이상'(합 28)이다. 두 숫자가 달라서 같은 사이트가 서로 다른 말을 하는 것처럼
+  // 보였다. 무엇을 센 숫자인지 배지 자체에 달아 둔다.
+  b.title = r === '전체' ? '전체 ' + n + '명'
+    : r + ' 판을 20판 이상 한 사람 ' + n + '명 (주 라인이 ' + r + '인 사람만 세는 홈 화면과 다릅니다)';
   b.innerHTML = esc(r)+' <span style="opacity:.65;font-size:11px">'+n+'</span>';
   b.onclick=()=>{ lbRole=r;
     lbTabs.querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected', String(x.dataset.role===r)));
