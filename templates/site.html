@@ -65,11 +65,7 @@ cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%;transition:
 .csub{margin-top:2px;font-size:11.5px;color:var(--muted);
 overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tag{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)}
-.crow{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;font-size:11.5px}
-.chip{background:var(--chip);border-radius:20px;padding:2px 9px;color:var(--ink2)}
 .wrbig{font-family:'Chakra Petch',sans-serif;font-size:16px;font-variant-numeric:tabular-nums;flex:none}
-.form{display:flex;gap:2px;margin-top:9px}
-.f{width:100%;height:5px;border-radius:2px;background:var(--bad)}
 .f.w{background:var(--good)}
 .hidden{display:none!important}
 .fbsec{border-top:1px solid var(--line);margin:38px 0 0;padding:22px 0 6px}
@@ -373,8 +369,10 @@ footer{border-top:1px solid var(--line);padding:16px 18px 40px;color:var(--muted
       <div class="lbtabs" id="lbTabs" role="tablist"></div>
       <div id="lbOut"></div>
       <!-- p 가 아니라 div — 안에 details/p 를 넣으면 p 는 브라우저가 강제로 닫는다 -->
-      <div class="muted" id="lbNote" role="status" aria-live="polite"
-           style="font-size:12px;line-height:1.7;margin:10px 0 0"></div>
+      <div class="muted" id="lbNote" style="font-size:12px;line-height:1.7;margin:10px 0 0"></div>
+      <!-- 라이브 리전은 알림 텍스트 자리다. details 같은 대화형 컨트롤을 넣으면
+           탭을 바꿀 때마다 스크린리더가 접힌 설명까지 통째로 읽는다. -->
+      <p class="sr" id="lbLive" role="status" aria-live="polite"></p>
       <details class="lbwhy">
         <summary>승률이 왜 순위에 없나요</summary>
         <p><b>승률 · 던진 판 · 뒤집은 판 · 최장 연승은 순위에서 뺐습니다.</b>
@@ -727,10 +725,16 @@ const ROLE_SENSITIVE = new Set(['cspm','dpm','vs','ldg','ldc','kp','kda','fb','d
                                 'gpm','dpg','sdpg','skpg','snet']);
 const mSel = document.getElementById('lbMetric');
 METRICS.forEach(m=>{const o=document.createElement('option');o.value=m.k;
-  o.textContent = m.l + (REL[m.k] != null && REL[m.k] < 0.5 ? ' (신뢰도 낮음)' : '');
+  // 꼬리표는 0.5, 문구 분기는 반올림 0.4 라 '(신뢰도 낮음)' 과 '큰 차이만 믿으세요'
+  // 가 동시에 붙는 지표가 있었다. 문구와 같은 값·같은 임계를 쓴다.
+  o.textContent = m.l + (REL[m.k] != null && Math.round(REL[m.k] * 100) / 100 < 0.4
+    ? ' (신뢰도 낮음)' : '');
   mSel.appendChild(o);});
 // 라인 탭 — 기본이 '전체'. 체크박스+셀렉트 두 단계였더니 지금 무엇이 켜져 있는지 안 보였다.
 const ROLE_TABS = ['전체','탑','정글','미드','원딜','서포터'];
+// 라인 탭의 최소 표본. 배지·필터·안내 문구가 전부 이 값을 써야 한다 —
+// 예전에는 상수 한 곳 + 리터럴 두 곳이라 상수만 바꾸면 배지가 거짓말을 했다.
+const MIN_ROLE_N = 20;
 let lbRole = '전체';
 // 제목을 눌러도 목록으로 — '← 전체 목록' 버튼만으로는 돌아갈 길이 하나뿐이었다.
 (function () {
@@ -742,7 +746,7 @@ const lbTabs = document.getElementById('lbTabs');
 ROLE_TABS.forEach(r=>{
   // 배지 숫자는 그 탭에서 실제로 보게 될 인원 — 주 라인이 아니어도 20판 이상이면 들어온다
   const n = r==='전체' ? D.players.length
-    : D.players.filter(p=>(p.roles||[]).some(x=>x.r===r && x.n>=20)).length;
+    : D.players.filter(p=>(p.roles||[]).some(x=>x.r===r && x.n>=MIN_ROLE_N)).length;
   if (r!=='전체' && !n) return;
   const b=document.createElement('button');
   b.type='button'; b.dataset.role=r; b.setAttribute('role','tab');
@@ -768,7 +772,6 @@ function renderRank(){
   // 예전에는 '주 라인이 그 라인인 사람'만 넣었다. 그래서 원딜을 29판 한 미드 유저가
   // 원딜 표에서 통째로 빠졌고, 5탭×10지표 50조합 중 14조합에서 1등이 뒤집혔다.
   // (원딜 분당골드 실제 1등 545 가 화면에는 530 으로, 원딜 솔킬수지는 부호까지 반대로)
-  const MIN_ROLE_N = 20;
   let rows;
   if (onlyRole && m.ldRole) {
     // 15분 격차는 roles[] 가 아니라 ld.m15.by_role 에 라인별 값이 있다
@@ -863,7 +866,7 @@ function renderRank(){
 
   let note;
   if (onlyRole && (m.rf || m.ldRole)) {
-    note = esc(want)+' 판만 따로 집계한 값입니다(20판 이상). 전 라인 평균이 아닙니다.';
+    note = esc(want)+' 판만 따로 집계한 값입니다(' + MIN_ROLE_N + '판 이상). 전 라인 평균이 아닙니다.';
   } else if (onlyRole) {
     // 이제 모든 지표에 rf 나 ldRole 이 있어 여기까지 오지 않는다. 지표를 새로
     // 넣다가 rf 를 빠뜨리면 다시 살아나므로, 조사('을/를')까지 맞춰 남겨 둔다.
@@ -893,7 +896,7 @@ function renderRank(){
     // 무작위 반분은 같은 시기 판을 양쪽에 섞으므로 시간 드리프트를 안 잰다 = 상한.
     if (DR != null && DR < r2 - 0.1) {
       note += ' 다만 이건 <b>같은 시기</b> 판을 섞어 잰 상한입니다 — 앞·뒤 시기로 ' +
-        '나누면 ' + DR.toFixed(2) + ' 까지 떨어집니다.';
+        '나누면 ' + DR.toFixed(2) + '까지 떨어집니다.';
     }
     // 그 값은 전 라인을 합쳐 잰 것이다. 라인 탭은 표본이 20~98판으로 줄어드는
     // 다른 계산이라 실제 재현성은 이보다 낮다 — 단정하지 않게 한정한다.
@@ -907,12 +910,12 @@ function renderRank(){
     const _t = ((D.sd_base||{})['탑']||{}).sd, _u = ((D.sd_base||{})['서포터']||{}).sd;
     more += '<p>피솔킬은 라인 격차가 큽니다' +
       (_t && _u ? '(탑 ' + _t + ' ↔ 서포터 ' + _u + ' · ' + (_t/_u).toFixed(1) + '배)' : '') +
-      ' — 라인 탭을 켜고 보세요. '+
+      ' — 라인 탭을 켜고 보세요(지금 라인 탭을 보고 있다면 그 라인 기준값입니다). '+
       '데스 수가 같다면 피솔킬 1회가 팀 데스 1회보다 더 나쁘지는 않습니다(실측). '+
       (function(){ const b = (D.sd_base || {})['서포터'] || {};
         return b.vs_laner != null
           ? '전체 표본에서 서포터는 피솔킬 중 맞라이너에게 당한 비중이 ' + b.vs_laner +
-            '%뿐이라 라인전 지표로 읽으면 안 됩니다(사람마다 다릅니다 — 자기 값은 개인 페이지에).'
+            '%뿐이라 라인전 지표로 읽으면 안 됩니다(사람마다 다릅니다 — 자기 값은 개인 페이지에)'
           : '서포터·정글은 맞상대가 고정되지 않아 라인전 지표로 읽으면 안 됩니다'; })() + '.</p>';
   }
   if (!onlyRole && rows.some(r=>r.p.role_share!=null && r.p.role_share<85))
@@ -921,6 +924,9 @@ function renderRank(){
     (more ? '<details class="lbwhy" style="margin-top:6px;padding-top:6px">'+
       '<summary>이 지표를 읽는 법</summary>'+more+'</details>' : '');
   out.querySelectorAll('.nm').forEach(b=>b.onclick=()=>{location.hash='#/p/'+b.dataset.id;});
+  // 표를 통째로 읽히면 시끄럽다. 무엇이 바뀌었는지 한 줄만 알린다.
+  const live = document.getElementById('lbLive');
+  if (live) live.textContent = want + ' · ' + m.l.split(' (')[0] + ' 기준 ' + rows.length + '명';
 }
 function renderH2H(){
   const el = document.getElementById('h2hOut');
@@ -1199,7 +1205,7 @@ function renderPlayer(id) {
         // 부족하면 폴백으로 보여주는 줄들도 전부 우연 범위였다. 그래 놓고 '숨겼다'고
         // 하니 화면에 남은 줄은 유의하다는 뜻으로 읽혔다. 있는 그대로 적는다.
         (M.shown_ns
-          ? ' 아래 ' + M.shown_ns + '줄(흐릿한 줄)은 통계적으로 구별되지 않는 차이이며, ' +
+          ? ' 위 상자에서 「· 우연 범위」로 표시한 ' + M.shown_ns + '줄은 통계적으로 구별되지 않는 차이이며, ' +
             '차이가 큰 순서로 뽑아 참고용으로만 띄운 것입니다.'
           : (M.not_significant ? ' 차이가 우연 범위인 조합 ' + M.not_significant +
              '건은 숨겼습니다.' : '')) + '</p>';
@@ -1207,7 +1213,9 @@ function renderPlayer(id) {
     '<div class="grid2">' +
       box('아군 정글 챔피언별 승률', bars(p.ajg) + cutNote((p.cuts||{}).ajg)) + '</div>' +
     '<h2 id="obj">오브젝트</h2>' +
-    '<p class="muted" style="margin:-4px 0 10px">아래 상자는 전부 <b>이겼을 때 이랬다</b>는 기록이지, 이걸 하면 이긴다는 뜻이 아닙니다 — 오브젝트는 이기고 있어서 먹는 쪽이 큽니다.</p>' +
+    '<p class="muted" style="margin:-4px 0 10px">아래 <b>오브젝트 상자들</b>은 그것을 먹은 판의 ' +
+    '승률입니다 — 이걸 하면 이긴다는 뜻이 아니라, 이기고 있는 쪽이 먹는 경우가 큽니다. ' +
+    '(맨 아래 두 칸은 오브젝트가 아니라 15분 골드 상황별 결과입니다.)</p>' +
     (function () {
       const cb = p.cb || {};
       if (cb.throw_rate == null && cb.comeback_rate == null) return '';
@@ -1343,11 +1351,6 @@ function renderPlayer(id) {
   // 죽음의 지도
   const M = F.map || {};
   if (M.grid) {
-    const cell = (v, mx, hue) => {
-      const a = mx ? Math.min(1, v / mx) : 0;
-      return '<rect x="0" y="0" width="1" height="1" fill="' + hue +
-             '" fill-opacity="' + (a * 0.92).toFixed(2) + '"/>';
-    };
     // grid 값은 합이 1000이 되도록 정규화된 값이다. 그대로 툴팁에 찍으면
     // '여기서 113번 죽었다'로 읽힌다 — 실제 횟수로 환산해서 보여준다.
     const mapSVG = (g, hue, label, tot) => {
@@ -1449,7 +1452,7 @@ function renderPlayer(id) {
             '동선이 겹치는 구간에서 혼자 잡히는지를 보세요.'
           : '맞라이너 비중이 높으면 라인전 문제, 정글·로밍 비중이 높으면 시야와 콜 문제입니다.') +
         (p.role_share != null && p.role_share < 85
-          ? ' 주 라인 비중이 ' + Math.round(p.role_share) + '% 라 부라인 판이 섞여 있습니다.' : '') +
+          ? ' 주 라인 비중이 ' + Math.round(p.role_share) + '%라 부라인 판이 섞여 있습니다.' : '') +
         '</p>');
     }
 
@@ -1539,7 +1542,7 @@ function renderPlayer(id) {
           sel('fR', '내 라인', uniq('r')) + sel('fE', '적 정글', uniq('ej')) +
           sel('fA', '아군 정글', uniq('aj')) +
         '</div></details>' +
-      '<div id="qout" aria-live="polite"></div></div>';
+      '<div id="qout"></div></div>';
   }
 
   // ---- 경기 목록 ----
@@ -1595,8 +1598,11 @@ function renderPlayer(id) {
       const bn = q => Math.max(1, Math.min(99, Math.round(100 - q)));
       const am = Math.abs(bn(z.pct) - bn(z.pct_raw));
       const arrow = am === 0 ? '' : (mv > 0 ? '↑' : '↓') + am + '계단';
+      // 부호를 higher_better 로 고정하면 '순위가 내려간 행' 에서는 소수파
+      // 드라이버만 남는데, 문장은 그 소수파 부호대로 방향을 말한다 —
+      // 같은 행의 화살표와 정반대가 된다. 그 행이 실제로 움직인 방향(mv)에 맞춘다.
       const drv = (z.drivers || []).filter(x => x.share != null && x.n >= 5 &&
-                    Math.abs(x.share) >= .2 && (x.share < 0) === !!z.higher_better)
+                    Math.abs(x.share) >= .2 && (x.share < 0) === (mv > 0))
                   .sort((a, b) => Math.abs(b.share) - Math.abs(a.share)).slice(0, 2);
       const ciTxt = (z.lo != null && z.hi != null)
         ? (() => { const a = Math.max(1, Math.min(99, Math.round(100 - z.hi)));
@@ -1615,9 +1621,12 @@ function renderPlayer(id) {
         z.me + '</td><td class="fl">' + z.exp +
         '</td><td class="fl">' + (nov || wide ? '—' : band(z.pct_raw)) +
         '</td><td class="mv ' + cls + '">' + shown + '</td></tr>';
-      if (drv.length && Math.abs(mv) >= 4) {
+      // 보정 후 칸을 '판정 불가/판정 안 함' 으로 지워 놓고 그 밑에 '↳ … 때문에
+      // 기대치가 낮게 잡힙니다' 라는 이동량 설명이 그대로 남아 있었다(61줄 중 50줄).
+      if (drv.length && Math.abs(mv) >= 4 && !nov && !wide) {
         r += '<tr><td class="why" colspan="5">↳ ' +
           drv.map(x => esc(x.champ) + ' ' + x.n + '판').join(' · ') +
+          '<span class="sub">(' + esc(p.role) + ' 판 기준 — 위 「많이 한 챔피언」은 전 라인)</span>' +
           ' 때문에 기대치가 ' + (drv[0].share < 0 ? '낮' : '높') + '게 잡힙니다</td></tr>';
       }
       return r;
