@@ -148,11 +148,14 @@ background:var(--line);border:1px solid var(--line);border-radius:9px;overflow:h
 .bar{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:12.5px}
 .bl{width:104px;flex:none;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bt{flex:1;height:13px;background:var(--gl);border-radius:3px;overflow:hidden}
-.bf{display:block;height:100%;border-radius:3px;background:var(--good)}  /* display 필수: span은 인라인이라 width가 무시돼 막대가 안 그려진다 */
+.bf{display:block;height:100%;border-radius:3px;background:var(--good)}
+/* 폭이 |승률-50| 이라 60%와 40%가 같은 길이가 된다. 진 쪽에 사선을 넣어
+   색에만 기대지 않게 한다(색각이상·흑백 인쇄에서도 구분). */
+.bf.lo{background:repeating-linear-gradient(135deg,var(--bad) 0 4px,rgba(255,255,255,.28) 4px 8px)}  /* display 필수: span은 인라인이라 width가 무시돼 막대가 안 그려진다 */
 .bf.lo{background:var(--bad)}
 .bf.neu{background:var(--muted);opacity:.55}
 .bf.un{opacity:.38}  /* 표본이 적어 확신 없음 — 방향(색)은 유지하고 옅게만 */
-.bv{width:74px;flex:none;text-align:right;font-family:'IBM Plex Mono',monospace;
+.bv{width:74px;flex:none;white-space:nowrap;text-align:right;font-family:'IBM Plex Mono',monospace;
 font-size:11.5px;font-variant-numeric:tabular-nums}
 .bv i{color:var(--muted);font-style:normal;font-size:10.5px}
 .fb{background:var(--surf);border:1px solid var(--line);border-left:3px solid var(--accent);
@@ -251,7 +254,11 @@ color:var(--ink2);border-radius:7px;padding:7px 12px;font:inherit;font-size:12.5
 .qreset:hover{border-color:var(--accent);color:var(--accent)}
 .h2bar{display:block;height:6px;border-radius:3px;background:var(--bad);opacity:.75;overflow:hidden}
 .h2bar i{display:block;height:100%;background:var(--good)}
-@media(max-width:560px){.h2t{font-size:11.5px}.h2t .mid{width:26%}}
+@media(max-width:560px){.h2t{font-size:11.5px}.h2t .mid{width:26%}
+/* .mrow/.grow 는 고정 폭 합이 309px 를 넘어 한 칸 안에서 3줄로 접혔다 */
+.mrow{grid-template-columns:28px 1fr 60px 42px 38px;gap:5px;font-size:11.5px}
+.grow{grid-template-columns:44px 1fr 1fr 1fr 52px;gap:4px;font-size:11.5px}
+.glist,.mlist{overflow-x:auto}}
 @media(max-width:560px){
   .lbtabs button{padding:6px 9px;font-size:12px}
   .lb{font-size:12px}
@@ -335,6 +342,7 @@ footer{border-top:1px solid var(--line);padding:16px 18px 40px;color:var(--muted
         </select></label>
         <label class="chk"><input type="checkbox" id="rGroup"> 라인별로 묶기</label>
       </div>
+      <p class="muted" style="margin:0 0 10px;font-size:12.5px">이름을 누르면 그 사람의 분석이 열립니다. 서로 비교하려면 위의 <b>전체 순위</b> 탭으로. 카드의 승률은 판수가 적어 순위로는 쓰지 않습니다.</p>
       <div class="roster" id="roster"></div>
       <details class="notes" id="notes"></details>
     <p class="muted" id="empty" style="display:none">검색 결과가 없습니다.</p></div></div>
@@ -415,7 +423,7 @@ const POS = {TOP: '탑', JUNGLE: '정글', MIDDLE: '미드', BOTTOM: '원딜', U
 D.players.sort((a, b) => col.compare(a.name, b.name));
 document.getElementById('sub').textContent =
   D.players.length + '명 · ' + D.note;
-document.getElementById('foot').textContent = '생성 ' + D.built;
+document.getElementById('foot').textContent = '페이지 빌드 ' + D.built;
 (function () {
   const el = document.getElementById('updated');
   if (!el) return;
@@ -428,14 +436,14 @@ document.getElementById('foot').textContent = '생성 ' + D.built;
   } catch (e) {}
   const failed = st.ok === false;
   el.innerHTML = '<span class="dot' + (stale || failed ? ' stale' : '') + '"></span>' +
-    '마지막 갱신 <b style="color:var(--ink)">' + esc(when) + '</b>' +
+    '전적 수집 <b style="color:var(--ink)">' + esc(when) + '</b>까지' +
     (failed ? ' <span style="color:var(--bad)">· 최근 갱신 실패: ' + esc(st.detail || '') + '</span>'
             : (stale ? ' <span style="color:var(--bad)">· 데이터가 오래됐습니다</span>' : ''));
 })();
 
 const rosterEl = document.getElementById('roster');
 
-function cardHTML(p) {
+function cardHTML(p, showForm) {
   // 이름·승률·라인·판수만 남긴다. 태그/KDA/관여/최근폼은 마우스를 올리면 보이고,
   // 상세는 카드를 누르면 나오므로 첫 화면에 다 펼칠 이유가 없다(18명이면 그게 난잡함의 원인).
   const w = p.form.slice(-10).filter(Boolean).length, g = p.form.slice(-10).length;
@@ -443,9 +451,10 @@ function cardHTML(p) {
     '% · KDA ' + p.kda + ' · 관여 ' + p.kp + '%' + (g ? ' · 최근 ' + g + '판 ' + w + '승' : '');
   return '<button class="card" data-id="' + p.id + '" title="' + esc(tip) + '">' +
     '<div class="cn"><span>' + esc(p.name) + '</span>' +
-      '<span class="wrbig" style="color:' + (p.wr >= 50 ? 'var(--good)' : 'var(--bad)') + '">' +
+      '<span class="wrbig" style="color:var(--ink2)">' +
       p.wr + '%</span></div>' +
-    '<div class="csub">' + esc(p.role) + ' · ' + p.n + '판</div></button>';
+    '<div class="csub">' + esc(p.role) + ' · ' + p.n + '판' +
+      (showForm && g ? ' · 최근 ' + g + '판 ' + w + '승' : '') + '</div></button>';
 }
 // ---------- 피드백 창구 ----------
 (function () {
@@ -561,7 +570,12 @@ function renderRoster(q) {
   let list = D.players.filter(p => {
     if (!q) return true;
     const n = p.name.toLowerCase(), t = (p.tag || '').toLowerCase();
-    return n.includes(q) || t.includes(q) || initials(n).includes(qi);
+    // 초성 매칭은 질의가 전부 자모일 때만. '조'를 치면 ㅈ 초성 10명이 걸리던 문제.
+    // 이름에 공백이 든 사람이 19명 중 7명이라 공백을 뺀 비교도 함께 본다.
+    const isCho = /^[ㄱ-ㅎ\s]+$/.test(q);
+    const sq = q.replace(/\s+/g, ''), sn = n.replace(/\s+/g, '');
+    return n.includes(q) || t.includes(q) || sn.includes(sq) ||
+           (isCho && initials(n).includes(qi));
   });
   const sort = (document.getElementById('rSort') || {}).value || 'name';
   const cmp = {
@@ -579,9 +593,9 @@ function renderRoster(q) {
       .concat(Object.keys(by).filter(r => !ROLE_ORDER.includes(r)));
     rosterEl.innerHTML = order.map(r =>
       '<div class="rgroup">' + esc(r) + ' ' + by[r].length + '명</div>' +
-      by[r].map(cardHTML).join('')).join('');
+      by[r].map(x => cardHTML(x, sort === 'form')).join('')).join('');
   } else {
-    rosterEl.innerHTML = list.map(cardHTML).join('');
+    rosterEl.innerHTML = list.map(x => cardHTML(x, sort === 'form')).join('');
   }
   document.getElementById('empty').style.display = list.length ? 'none' : 'block';
 }
@@ -626,7 +640,7 @@ const METRICS = [
   // 명예의 전당에서 퍼블 카드를 뺀 뒤로 그 카드를 읽던 이 지표가 전원 0% 가 됐다.
   // 생성기가 내려주는 fb_rate 를 직접 쓴다. 한 경기에 한 번 · 참가자 10명이라
   // 무작위여도 10% 가 나오므로 그 기준선을 지표 이름에 박아 둔다.
-  {k:'fb', l:'판당 퍼스트블러드 (무작위여도 10%)', u:'%', hi:true, dp:1,
+  {k:'fb', l:'판당 퍼스트블러드 (전체 평균 9.9% · 라인마다 다름)', u:'%', hi:true, dp:1,
    f:p=>p.fb_rate},
   {k:'sdpg', l:'판당 피솔킬(낮을수록 좋음)', f:p=>(p.sd||{}).per_game, u:'', hi:false, dp:2, rf:r=>r.sdpg},
   {k:'skpg', l:'판당 솔킬', f:p=>(p.sd||{}).given_per_game, u:'', hi:true, dp:2, rf:r=>r.skpg},
@@ -724,7 +738,7 @@ function renderRank(){
       ? '<span class="sub">'+esc(role)+' 평균 '+b[key]+'</span>' : '';
   };
   const fmt = r => m.fmt ? m.fmt(r.v, r.p)
-    : ((typeof r.v==='number'? r.v.toFixed(dp).replace(/\.?0+$/, s2=>dp>1?s2:'') : r.v)
+    : ((typeof r.v==='number'? r.v.toFixed(dp) : r.v)
        + esc(m.u) + baseNote(r));
   // 라인은 별도 열로. 닉네임 옆 배지로는 포지션이 눈에 안 들어왔다.
   // 주 라인만 적으면 '미드 유저의 원딜 판'이 섞여 있다는 사실이 숨는다 -> 비중을 같이 적는다.
@@ -737,7 +751,7 @@ function renderRank(){
   };
   out.innerHTML = '<table class="lb"><thead><tr><th></th><th>닉네임</th><th>라인</th>'+
     '<th style="text-align:right">'+esc(m.l)+'</th><th style="text-align:right">'+
-    ((m.nf || ((m.rf || m.ldRole) && onlyRole)) ? '표본' : '판수')+'</th></tr></thead><tbody>'+
+    (((m.rf || m.ldRole) && onlyRole) ? '표본' : (m.nf ? (onlyRole ? '전 라인 표본' : '표본') : '판수'))+'</th></tr></thead><tbody>'+
     rows.map(r=>'<tr><td class="rk">'+r.rk+'</td>'+
       '<td class="nm" data-id="'+r.p.id+'">'+esc(r.p.name)+'</td>'+
       lnCell(r)+
@@ -750,7 +764,7 @@ function renderRank(){
     note = esc(want)+' 판만 따로 집계한 값입니다(20판 이상). 전 라인 평균이 아닙니다.';
   } else if (onlyRole) {
     note = esc(want)+'를 주 라인으로 하는 사람만 골랐습니다. 이 지표는 라인별로 나눌 수 없어 '+
-      '<b>수치 자체는 그 사람의 전 라인 값</b>입니다.';
+      '<b>수치 자체는 전 라인 판을 합쳐 낸 값</b>입니다.';
   } else if (ROLE_SENSITIVE.has(m.k)) {
     note = '⚠ 라인이 섞여 있습니다. 이 지표는 포지션마다 기준이 달라 그대로 비교하면 안 됩니다. 위에서 라인 탭을 골라 보세요.';
   } else {
@@ -767,10 +781,15 @@ function renderRank(){
   if (dropped>0) note += ' 표본이 모자라 '+dropped+'명을 뺐습니다.';
   // 길어지는 설명은 접어 둔다 — 표 밑에 다섯 문장이 늘 붙어 있으면 아무도 안 읽는다.
   let more = '';
-  if (m.k==='sdpg' || m.k==='skpg' || m.k==='snet')
-    more += '<p>피솔킬은 라인 격차가 2.6배입니다(탑 1.97 ↔ 서포터 0.76) — 라인 탭을 켜고 보세요. '+
+  if (m.k==='sdpg' || m.k==='skpg' || m.k==='snet') {
+    // 숫자를 리터럴로 두면 데이터가 바뀔 때 표의 값과 어긋난다(0.76 vs 0.75 가 실제로 났다)
+    const _t = ((D.sd_base||{})['탑']||{}).sd, _u = ((D.sd_base||{})['서포터']||{}).sd;
+    more += '<p>피솔킬은 라인 격차가 큽니다' +
+      (_t && _u ? '(탑 ' + _t + ' ↔ 서포터 ' + _u + ' · ' + (_t/_u).toFixed(1) + '배)' : '') +
+      ' — 라인 탭을 켜고 보세요. '+
       '데스 수가 같다면 피솔킬 1회가 팀 데스 1회보다 더 나쁘지는 않습니다(실측). '+
       '서포터는 피솔킬 중 맞라이너에게 당한 비중이 12.6%뿐이라 라인전 지표로 읽으면 안 됩니다.</p>';
+  }
   if (!onlyRole && rows.some(r=>r.p.role_share!=null && r.p.role_share<85))
     more += '<p>라인 옆 %는 주 라인 비중입니다(85% 이상이면 생략). 그 비율만큼만 그 라인 판입니다.</p>';
   document.getElementById('lbNote').innerHTML = note +
@@ -833,7 +852,11 @@ function showTab(rank){
 document.getElementById('tabRank').onclick=()=>showTab(true);
 document.getElementById('tabList').onclick=()=>showTab(false);
 
-document.getElementById('search').addEventListener('input', e => renderRoster(e.target.value));
+document.getElementById('search').addEventListener('input', e => {
+  // 개인 페이지에서 이름을 치면 목록이 걸러지긴 하는데 화면은 그대로였다. 목록으로 돌려보낸다.
+  if ((location.hash || '').indexOf('#/p/') === 0) location.hash = '';
+  renderRoster(e.target.value);
+});
 rosterEl.addEventListener('click', e => {
   const b = e.target.closest('.card');
   if (b) location.hash = '#/p/' + b.dataset.id;
@@ -876,7 +899,7 @@ function bars(rows, opt) {
       cls = (v >= 50 ? '' : 'lo') + (sure ? '' : ' un');
       if (sure) mark = v >= 50 ? ' ▲' : ' ▼';
     }
-    const val = (mode === 'rate' && n > 0 && n < 6) ? '—'
+    const val = (n > 0 && n < 6 && r.wr != null) ? '—'
               : (v.toFixed ? v.toFixed(1).replace(/\.0$/, '') : v) + unit;
     return '<div class="bar"><span class="bl" title="' + esc(r.l) + '">' + esc(r.l) + '</span>' +
       '<span class="bt"><span class="bf ' + cls + '" style="width:' + width.toFixed(1) + '%"></span></span>' +
@@ -891,12 +914,14 @@ function renderPlayer(id) {
   if (!p) { location.hash = ''; return; }
   const o = p.obj || {};
   const kpi = [['판수', p.n + '판'], ['승률', p.wr + '%'], ['주 라인', p.role],
-               ['KDA', p.kda], ['킬관여', p.kp + '%'], ['분당 CS', p.cspm],
-               ['시야', p.vs], ['분당딜', p.dpm]];
-  const jumps = [['live', '최근 경기'], ['hof', '명예의 전당'], ['ch', '챔피언'], ['query', '조합 조회'],
-                 ['lane', '맞라인'], ['team', '아군·적'], ['obj', '오브젝트'],
-                 ['map', '죽음의 지도'], ['solo', '피솔킬'], ['habit', '습관'],
-                 ['games', '경기 목록'], ['fb', '고칠 점']];
+               ['KDA', p.kda], ['킬 관여율', p.kp + '%'], ['분당 CS', p.cspm],
+               ['시야 점수', p.vs], ['분당 딜', p.dpm]];
+  // 문서에 실제로 삽입되는 순서와 같아야 위아래로 안 튄다.
+  // 'live' 는 '최근 경기 목록'(games)과 이름이 겹쳐서 동작 이름으로 갈랐다.
+  const jumps = [['hof', '명예의 전당'], ['ch', '챔피언'], ['lane', '맞라인 상대'],
+                 ['team', '아군 · 적'], ['obj', '오브젝트'], ['live', '방금 한 판'],
+                 ['map', '죽음의 지도'], ['solo', '피솔킬'], ['habit', '습관과 리듬'],
+                 ['query', '조합 조회'], ['games', '경기 목록'], ['fb', '고칠 점']];
   let h = '<button class="back" id="back">← 전체 목록</button>' +
     '<h1 style="margin:0">' + esc(p.name) + ' <span class="tag">#' + esc(p.tag) + '</span></h1>' +
     '<p class="sub">' + esc(p.role) + ' · ' + p.n + '판 · 승률 ' + p.wr + '%</p>' +
@@ -996,9 +1021,25 @@ function renderPlayer(id) {
       box('획득 용 수별 승률', bars((o.dragon_count || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
       box('첫 용 획득 시점별 승률', bars((o.first_dragon_time || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
       box('첫 용 속성별 승률', bars((o.first_dragon_element || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
-      box('오브젝트 선취 시 승률', bars((o.firsts || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
+      (function(){
+        const dr = o.firsts_dropped || {};
+        const ks = Object.keys(dr);
+        return box('오브젝트 선취 시 승률',
+          bars((o.firsts || []).map(r => ({l: r.label, n: r.n, wr: r.winrate}))) +
+          (ks.length ? '<p class="muted">표본이 모자라 뺀 줄: ' +
+            ks.map(k => esc(k) + ' ' + dr[k] + '판').join(' · ') + '</p>' : ''));
+      })() +
       box('공허 유충 획득 시 승률', bars((o.horde_bin || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
-      box('15분 골드 차이별 승률', bars(((p.cb || {}).by_lead15 || []).map(r => ({l: r.label, n: r.n, wr: r.winrate})))) +
+      (function(){
+        const cb2 = p.cb || {}, rows2 = cb2.by_lead15 || [];
+        const lost = (cb2.lead15_total || 0) - (cb2.lead15_shown || 0);
+        const thin = rows2.filter(r => r.n < 40).length;
+        return box('15분 골드 차이별 승률',
+          bars(rows2.map(r => ({l: r.label, n: r.n, wr: r.winrate}))) +
+          '<p class="muted">' +
+          (lost ? '표본 6판 미만인 구간 ' + lost + '판은 뺐습니다. ' : '') +
+          (thin ? '가운데 구간은 표본이 얇아 칸 사이 순서를 믿지 마세요.' : '') + '</p>');
+      })() +
       '</div>';
   if ((o.impact || []).length) {
     const gmax = Math.max(...(o.impact || []).map(r => Math.abs(r.gap)), 1);
@@ -1009,7 +1050,7 @@ function renderPlayer(id) {
       '<p class="muted">획득한 판과 내준 판의 승률 차이입니다. 인과가 아니라 동반 관계입니다.</p>');
   }
   h += '<h2 id="live">최근 경기</h2><div class="box">' +
-    '<p class="note">아래 통계는 하루 한 번 갱신됩니다. 방금 한 게임은 이 버튼으로 바로 확인하세요.</p>' +
+    '<p class="note">이 페이지의 통계는 하루 한 번 갱신됩니다. 방금 한 게임은 이 버튼으로 바로 확인하세요.</p>' +
     '<button class="livebtn" id="liveBtn">최근 경기 불러오기</button>' +
     '<div id="liveOut"></div></div>';
 
@@ -1019,7 +1060,7 @@ function renderPlayer(id) {
     const hof = F.hof.map(r =>
       '<div class="rec' + (r.hero ? ' hero' : '') + '"><div class="rl">' + esc(r.label) + '</div>' +
       '<div class="rv">' + r.value.toLocaleString() + '<span style="font-size:12px">' +
-      esc(r.unit || '') + '</span></div>' +
+      esc(r.unit || {'최대 딜':'딜','최고 시야 점수':'점'}[r.label] || '') + '</span></div>' +
       '<div class="rm" data-mid="' + esc(r.mid || '') + '">' + esc(r.champ) + ' · ' + esc(r.when) +
       (r.win ? ' · 승' : ' · 패') + '</div></div>').join('');
     h = h.replace('<h2 id="ch">', '<h2 id="hof">명예의 전당</h2><div class="hof">' + hof +
@@ -1037,23 +1078,27 @@ function renderPlayer(id) {
       return '<rect x="0" y="0" width="1" height="1" fill="' + hue +
              '" fill-opacity="' + (a * 0.92).toFixed(2) + '"/>';
     };
-    const mapSVG = (g, hue, label) => {
+    // grid 값은 합이 1000이 되도록 정규화된 값이다. 그대로 툴팁에 찍으면
+    // '여기서 113번 죽었다'로 읽힌다 — 실제 횟수로 환산해서 보여준다.
+    const mapSVG = (g, hue, label, tot) => {
       const mx = Math.max(...g.flat(), 1);
-      let r = '<svg viewBox="0 0 ' + M.grid + ' ' + M.grid + '" class="chart" ' +
+      let r = '<svg viewBox="0 0 ' + M.grid + ' ' + M.grid + '" class="chart" role="img" ' +
+              'aria-label="' + esc(label) + ' 히트맵. 진할수록 자주 일어난 자리입니다." ' +
               'style="width:100%;border:1px solid var(--line);border-radius:8px;background:var(--gl)">';
       for (let j = 0; j < M.grid; j++) for (let i = 0; i < M.grid; i++) {
         const v = g[j][i]; if (!v) continue;
         r += '<rect x="' + i + '" y="' + (M.grid - 1 - j) + '" width="1" height="1" fill="' + hue +
-             '" fill-opacity="' + Math.min(1, v / mx * 0.95).toFixed(2) + '"><title>' + v + '</title></rect>';
+             '" fill-opacity="' + Math.min(1, v / mx * 0.95).toFixed(2) + '"><title>' + Math.round(v / 1000 * tot) + '회</title></rect>';
       }
       r += '<line x1="0" y1="' + M.grid + '" x2="' + M.grid + '" y2="0" stroke="var(--muted)" ' +
            'stroke-width="0.06" stroke-dasharray="0.3 0.3"/></svg>';
       return '<div><h3 style="font-size:13px;margin:0 0 6px">' + label + '</h3>' + r + '</div>';
     };
     h += '<h2 id="map">죽음의 지도</h2><div class="box"><div class="maps">' +
-      mapSVG(M.deaths, 'var(--bad)', '내가 죽은 곳 (' + M.n_death + '회)') +
-      mapSVG(M.kills, 'var(--good)', '내가 킬 낸 곳 (' + M.n_kill + '회)') +
-      '</div><p class="muted">항상 블루 진영 기준으로 뒤집어 겹쳤습니다. 왼쪽 아래가 우리 본진, 대각선이 미드입니다.</p></div>';
+      mapSVG(M.deaths, 'var(--bad)', '내가 죽은 곳 (' + M.n_death + '회)', M.n_death) +
+      mapSVG(M.kills, 'var(--good)', '내가 킬 낸 곳 (' + M.n_kill + '회)', M.n_kill) +
+      '</div><p class="muted">항상 블루 진영 기준으로 뒤집어 겹쳤습니다. 왼쪽 아래가 우리 본진, 대각선이 미드입니다.' +
+      (M.games ? ' 최근 ' + M.games + '판 기준입니다.' : '') + '</p></div>';
   }
   // 데스 부검
   if ((F.autopsy || []).length) {
@@ -1066,7 +1111,7 @@ function renderPlayer(id) {
       '"></i>' + esc(r.label) + ' ' + r.pct + '%</span>').join('');
     h += box('죽은 이유', '<div class="stack">' + st + '</div>' +
       '<div class="legend">' + lg + '</div>' +
-      '<p class="muted">짤림 = 여러 명에게 아군 없이 잡힘 · 1:1 라인전 사망 = 근처에 아군이 없는 상태로 1:1에서 짐. 3분 이후만 집계합니다.<br>위 <b>피솔킬</b> 카드와 숫자가 다릅니다 — 피솔킬은 아군이 옆에 있었든 말든 “어시스트 없이 잡힘” 전부를 세고, 여기 1:1 라인전 사망은 그중 아군이 근처에 없던 것만 셉니다. 위치는 60초 프레임 사이를 보간해 잡습니다.</p>');
+      '<p class="muted">' + (F.autopsy_games ? '최근 ' + F.autopsy_games + '판 기준입니다. ' : '') + '짤림 = 여러 명에게 아군 없이 잡힘 · 1:1 라인전 사망 = 근처에 아군이 없는 상태로 1:1에서 짐. 3분 이후만 집계합니다.<br>위 <b>피솔킬</b> 카드와 숫자가 다릅니다 — 피솔킬은 아군이 옆에 있었든 말든 “어시스트 없이 잡힘” 전부를 세고, 여기 1:1 라인전 사망은 그중 아군이 근처에 없던 것만 셉니다. 위치는 60초 프레임 사이를 보간해 잡습니다.</p>');
   }
   // ---- 피솔킬 ----
   const SD = p.sd || {};
@@ -1108,7 +1153,7 @@ function renderPlayer(id) {
       const mx2 = Math.max(...SD.by_min.map(x => x.n), 1);
       h += box('피솔킬 시간대 분포', '<div class="spark">' + SD.by_min.map(x =>
         '<div class="sb" style="height:' + Math.round(x.n / mx2 * 100) + '%" title="' +
-        x.m + '~' + (x.m + 2) + '분 · ' + x.n + '회"></div>').join('') + '</div>' +
+        (x.last ? '30분 이후' : x.m + '~' + (x.m + 2) + '분') + ' · ' + x.n + '회"></div>').join('') + '</div>' +
         '<div class="spx"><span>0분</span><span>15분</span><span>30분+</span></div>' +
         '<p class="muted">2분 단위입니다. 봉우리가 6~10분에 있으면 2코어 타이밍, 0~4분이면 렙2·렙3 올인입니다.</p>');
     }
@@ -1133,7 +1178,7 @@ function renderPlayer(id) {
   h += '<h2 id="habit">습관과 리듬</h2><div class="grid2">';
   const S = F.streak;
   if (S) {
-    const grass = (S.recent || []).map(w => '<div class="gd' + (w ? ' w' : '') + '"></div>').join('');
+    const grass = (S.recent || []).map(w => '<div class="gd' + (w ? ' w' : '') + '" title="' + (w ? '승' : '패') + '"></div>').join('');
     h += box('연승 · 연패', '<div class="streak">' +
       '<div><div class="muted">최장 연승</div><div class="sbig" style="color:var(--good)">' +
       S.win + '</div></div>' +
@@ -1244,7 +1289,8 @@ function renderPlayer(id) {
       '애초에 다릅니다. 그래서 <b>내가 고른 챔피언들의 평균</b>을 기대치로 잡고, 거기서 얼마나 ' +
       '벗어났는지로 다시 줄을 세웠습니다. 기대치는 <b>본인 판을 통째로 뺀</b> 값이라 자기 성적이 ' +
       '자기 기준이 되는 일은 없습니다.</p>' +
-      '<div style="overflow-x:auto"><table class="adj"><tr><th>지표</th><th>내 값</th>' +
+      '<div style="overflow-x:auto"><table class="adj"><tr><th>지표</th>' +
+      '<th>내 값 <span style="font-weight:400">· ' + esc(p.role) + ' 판만</span></th>' +
       '<th>챔프 기대치</th><th>보정 전</th><th>보정 후 <span style="font-weight:400">· 95% 구간</span>' +
       '</th></tr>' + rows + '</table></div>' +
       '<p class="muted">작은 글씨가 95% 구간입니다. 폭이 30%p를 넘으면 순위를 말할 수 없어 ' +
@@ -1252,7 +1298,7 @@ function renderPlayer(id) {
       '<p class="muted">' + ((p.zs[0] || {}).pop_kind === 'own'
         ? '비교 대상은 <b>' + esc(p.name) + '님이 실제로 뛴 경기에 나온 같은 라인 선수 ' +
           ((p.zs[0] || {}).pop || 0).toLocaleString() + '명</b>입니다(본인 제외). ' +
-          '매칭 시스템이 실력을 맞춰 넣어준 사람들이라 "같은 라인 N명 중 몇 등"이 그대로 성립합니다. ' +
+          '매칭 시스템이 실력을 맞춰 넣어준 사람들이라 실력대가 맞습니다. 다만 이 순위는 그 N명의 '+'관측값을 줄세운 게 아니라, <b>표본 잡음을 걷어낸 실력 추정</b> 기준입니다. ' +
           '대부분 1판씩만 나오므로 평균만 이 집단에서 쓰고, 흩어진 정도는 라인 전체 표본에서 가져왔습니다 ' +
           '— 작은 집단에서 산포를 직접 재면 0으로 무너져 사소한 차이가 "상위 99%"로 튑니다.'
         : '비교 대상은 이 데이터에 등장한 같은 라인 전원' +
@@ -1280,7 +1326,7 @@ function renderPlayer(id) {
     const note = n === 0 ? '<span class="muted">조건에 맞는 경기가 없습니다.</span>'
       : (n < 5 ? '<span class="muted">표본이 ' + n + '판뿐이라 승률은 참고만 하세요.</span>' : '');
     out.innerHTML = '<div class="qres"><span class="big" style="color:' +
-      (n && w / n >= 0.5 ? 'var(--good)' : 'var(--bad)') + '">' + wr + '%</span>' +
+      (!n ? 'var(--muted)' : (w / n >= 0.5 ? 'var(--good)' : 'var(--bad)')) + '">' + wr + '%</span>' +
       '<span>' + n + '판 · ' + w + '승 ' + (n - w) + '패</span>' + note + '</div>' +
       (n ? '<div class="glist"><div class="grow hd"><span>결과</span><span>내 챔프</span>' +
         '<span>맞라인</span><span>적 정글</span><span>날짜</span></div>' +
