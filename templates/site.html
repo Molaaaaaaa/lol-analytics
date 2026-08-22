@@ -17,6 +17,8 @@
 <meta name="twitter:image" content="https://lol-disassembly-analyzer.pages.dev/og.png?v=3">
 <meta name="theme-color" content="#0e1420">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%94%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<!-- 친구들의 실명 전적이다. 검색에 걸리지 않게 한다(robots.txt 와 한 벌). -->
+<meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -568,7 +570,11 @@ function cardHTML(p, showForm) {
     return REPO + "/issues/new?title=" + encodeURIComponent(t) + "&body=" + encodeURIComponent(b);
   }
   function showAlt(label) {
-    alt.innerHTML = label + ' <a href="' + issueURL() + '" target="_blank" rel="noopener">GitHub Issues에 남기기</a>';
+    // href 를 여기서 구우면 페이지 로드 시점 값으로 얼어붙는다 — 친구가 60자를
+    // 적어 놓고 이 링크를 누르면 본문이 빈 채로 열렸다. 누를 때 다시 만든다.
+    alt.innerHTML = label + ' <a href="#" target="_blank" rel="noopener">GitHub Issues에 남기기</a>';
+    const a = alt.querySelector('a');
+    if (a) a.onclick = () => { a.href = issueURL(); };
   }
   showAlt("또는");
 
@@ -947,12 +953,17 @@ function renderH2H(){
     const t = l + r2 || 1;
     return '<span class="h2bar"><i style="width:'+(l/t*100).toFixed(0)+'%"></i></span>';
   };
+  // 사이트 전체가 '6판 미만이면 승률을 가린다' 를 지키는데 이 표만 빠져 있었다.
+  // 두 친구 이름 옆에 1판짜리 0% 가 굵은 빨강으로 단정돼 있었다.
+  let duoHidden = 0;
   const duoRows = Object.values(duo).sort((x,y)=>y.n-x.n).map(v=>{
     const wr = v.w/v.n*100;
+    const thin = v.n < 6;
+    if (thin) duoHidden++;
     return '<tr><td class="who">'+esc(v.a)+' <span class="amp">+</span> '+esc(v.b)+'</td>'+
       '<td class="mid">'+bar(v.w, v.n-v.w)+'</td>'+
-      '<td class="res"><b style="color:'+(wr>=50?'var(--good)':'var(--bad)')+'">'+
-        wr.toFixed(0)+'%</b><span class="sub2">'+v.w+'승 '+(v.n-v.w)+'패</span></td></tr>';
+      '<td class="res"><b'+(thin ? ' class="fl"' : ' style="color:'+(wr>=50?'var(--good)':'var(--bad)')+'"')+'>'+
+        (thin ? '—' : wr.toFixed(0)+'%')+'</b><span class="sub2">'+v.w+'승 '+(v.n-v.w)+'패</span></td></tr>';
   }).join('');
   const vsRows = Object.values(pair).sort((x,y)=>y.n-x.n).map(v=>{
     const bw = v.n - v.aw;
@@ -970,7 +981,9 @@ function renderH2H(){
       (vsRows ? '<div><h4 class="h2h4">맞붙어서</h4>'+
         '<table class="h2t"><tbody>'+vsRows+'</tbody></table></div>' : '')+
     '</div>'+
-    '<p class="muted">막대는 왼쪽 사람 기준입니다. 몇 판 안 되는 조합이 대부분이라 승률은 재미로만 보세요.</p>';
+    '<p class="muted">막대는 왼쪽 사람 기준입니다.' +
+    (duoHidden ? ' <b>—</b> 6판 미만이라 승률을 가렸습니다 (' + duoHidden + '줄) — 승패 수는 그대로 둡니다.' : '') +
+    ' 몇 판 안 되는 조합이 대부분이라 승률은 재미로만 보세요.</p>';
 }
 
 // '승률이 왜 순위에 없나요' 문단을 payload 로 채운다. 리터럴로 박아 두면
@@ -1530,7 +1543,10 @@ function renderPlayer(id) {
       opts.map(o => '<option>' + esc(o) + '</option>').join('') + '</select></label>';
     h += '<h2 id="query">조합 조회</h2><div class="box">' +
       '<p class="note">조건을 골라 그 상황의 전적만 볼 수 있습니다. ' +
-      '조합이 좁을수록 표본이 작아지니 판수를 함께 보세요.</p>' +
+      '조합이 좁을수록 표본이 작아지니 판수를 함께 보세요.' +
+      ((p.games_total || 0) > (p.games || []).length
+        ? ' <b>최근 ' + (p.games || []).length + '판만</b> 담았습니다 (전체 ' +
+          p.games_total + '판).' : '') + '</p>' +
       '<div class="filters">' +
         sel('fC', '내 챔피언', uniq('c')) + sel('fO', '맞라인 상대', uniq('o')) +
         '<button type="button" class="qreset" id="qReset">초기화</button>' +
@@ -1573,8 +1589,13 @@ function renderPlayer(id) {
   const good = fbAll.filter(t => t.indexOf('👍') === 0);
   const work = fbAll.filter(t => t.indexOf('👍') !== 0);
   h += '<h2 id="fb">고칠 점</h2>';
+  // 강점은 나왔는데 약점이 없는 사람에게 '표본이 더 쌓이면' 은 거짓이다 —
+  // 표본은 충분하고 약점으로 부를 만한 게 안 걸린 것이다(실제로 그런 사람이 있었다).
   h += work.length ? work.map(t => '<div class="fb">' + t + '</div>').join('')
-    : '<p class="muted">표본이 더 쌓이면 제공됩니다.</p>';
+    : (good.length
+        ? '<p class="muted">지금 기준으로는 고칠 점을 못 찾았습니다 — 판정할 수 있는 지표가 ' +
+          '전부 중앙값 위입니다. 아래 <b>챔피언 보정 백분위</b> 표에서 가장 낮은 줄부터 보세요.</p>'
+        : '<p class="muted">표본이 더 쌓이면 제공됩니다.</p>');
   // 억지 칭찬을 걷어내면서(상위 95% 짜리가 강점 칸에 올라가던 문제) 강점이
   // 하나도 안 남는 사람이 생긴다. 아무 말 없이 비우면 페이지가 비난만 남으므로
   // 왜 비었는지 한 줄로 밝힌다.
