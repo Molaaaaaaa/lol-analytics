@@ -1,9 +1,11 @@
 # Cloudflare Pages 캐시 · 보안 헤더
+# 이 파일은 scripts/build_headers.py 가 만든다. 손으로 고치지 말 것 —
+# CSP 의 스크립트 해시가 index.html 과 한 벌이라 빌드마다 바뀐다.
 
 /*
-  # 이 사이트는 자기 자신 외에는 아무것도 실행/불러오지 않는다.
-  # 예외는 Google Fonts 하나뿐이라 거기만 열어 둔다.
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'
+  # 인라인 스크립트를 해시로 허용하고 'unsafe-inline' 을 뺐다.
+  # 그래서 주입된 onerror= 같은 속성형 핸들러는 CSP 단계에서 죽는다.
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-jD8JBR33JirpxTqUK7aYaY8oQkfCM7JFIg4/w6qbadc='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
   X-Frame-Options: DENY
   # 실명 전적이라 검색 색인에서 뺀다(robots.txt · meta 와 한 벌).
   X-Robots-Tag: noindex, nofollow
@@ -12,10 +14,12 @@
   Permissions-Policy: geolocation=(), microphone=(), camera=(), interest-cohort=()
 
 # 빌드가 하루 한 번이라 5분 지연은 무해하다. max-age=0 은 검증자(ETag)가 없으면
-# 매 방문마다 182KB 를 통째로 다시 받게 만든다.
+# 매 방문마다 전량을 다시 받게 만든다.
 /
   Cache-Control: public, max-age=300
 /index.html
   Cache-Control: public, max-age=300
 /og.png
   Cache-Control: public, max-age=86400
+/robots.txt
+  Cache-Control: public, max-age=3600
